@@ -1,65 +1,195 @@
+/* Root container for the entire app */
 .container {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 16px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: #1a1a1a; /* Dark theme */
+  padding: 24px;
+  box-sizing: border-box;
 }
 
+/* Header */
 .title {
-  font-size: 1.5rem;
+  font-size: 2rem;
   font-weight: bold;
-  margin-bottom: 16px;
-}
-
-.form-group {
-  margin-bottom: 16px;
-}
-
-label {
-  display: block;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: #374151;
-}
-
-.input {
+  color: #ffffff;
+  margin-bottom: 24px;
+  text-align: center;
   width: 100%;
-  padding: 8px;
-  border: 1px solid #d1d5db;
-  border-radius: 4px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
+/* Form container */
+.form-container {
+  width: 100%;
+  max-width: 600px; /* Limit form width for better centering */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Form inputs */
+.form-group {
+  width: 100%;
+  margin-bottom: 20px;
+}
+
+.form-input .MuiOutlinedInput-root {
+  background-color: #242424;
+  color: #ffffff;
+  border-radius: 8px;
+}
+
+.form-input .MuiInputLabel-root {
+  color: #ffffff;
+  font-weight: 500;
+}
+
+.form-input .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline {
+  border-color: #9146FF; /* Twitch purple */
+}
+
+.form-input .MuiOutlinedInput-notchedOutline {
+  border-color: #646cff;
+}
+
+/* Buttons */
 .button {
-  background-color: #3b82f6;
-  color: white;
-  padding: 8px 16px;
-  border-radius: 4px;
+  background-color: #9146FF;
+  color: #ffffff;
+  padding: 10px 20px;
+  border-radius: 8px;
   border: none;
   cursor: pointer;
+  font-weight: 600;
+  transition: background-color 0.3s;
 }
 
 .button:hover:not(:disabled) {
-  background-color: #2563eb;
+  background-color: #7b3fe4; /* Darker purple */
 }
 
 .button:disabled {
-  background-color: #9ca3af;
+  background-color: #4b4b4b;
   cursor: not-allowed;
 }
 
+/* Error message */
 .error {
   color: #ef4444;
-  margin-top: 8px;
+  margin: 16px 0;
+  text-align: center;
+  font-size: 0.9rem;
+  width: 100%;
 }
 
+/* Tabs */
+.tabs {
+  width: 100%;
+  max-width: 600px; /* Match form width */
+  margin-top: 16px;
+}
+
+.tabs .MuiTab-root {
+  color: #ffffff;
+  font-weight: 500;
+}
+
+.tabs .MuiTab-root.Mui-selected {
+  color: #9146FF;
+}
+
+.tabs .MuiTabs-indicator {
+  background-color: #9146FF;
+}
+
+/* Events section (Detailed View) */
 .subtitle {
-  font-size: 1.25rem;
+  font-size: 1.5rem;
   font-weight: 600;
-  margin-top: 24px;
-  margin-bottom: 8px;
+  color: #ffffff;
+  margin: 24px 0 16px;
+  text-align: center;
+  width: 100%;
+}
+
+.events {
+  width: 100%;
+  max-width: 800px;
+  background-color: #1a1a1a;
+  padding: 16px;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .event {
-  border-bottom: 1px solid #e5e7eb;
-  padding: 8px 0;
+  width: 100%;
+  background-color: #242424;
+  padding: 32px;
+  margin-bottom: 16px;
+  border: 1px solid #9146FF;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: space-between; /* Push image to right */
+  gap: 16px !important; /* Space between text and image */
+  box-sizing: border-box;
+}
+
+.event-content {
+  flex: 1; /* Text takes available space */
+  display: flex;
+  flex-direction: column;
+  min-width: 0; /* Prevent text overflow */
+}
+
+.event-img {
+  width: 50px;
+  height: 70px;
+  border: 2px solid #9146FF;
+  border-radius: 4px;
+  order: 2; /* Ensure image stays last */
+  align-self: flex-start; /* Align with top of text */
+}
+
+/* Compact view */
+.compact-events {
+  width: 100%;
+  max-width: 600px;
+  background-color: #1a1a1a;
+  padding: 16px;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.compact-event {
+  width: 100%;
+  padding: 8px;
+  margin-bottom: 8px;
+  background-color: #242424;
+  border-radius: 4px;
+  color: #ffffff;
+  font-size: 0.9rem;
+}
+
+/* Copy button container */
+.copy-button-container {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
+}
+
+/* Crisp text for both views */
+.event p, .event h5, .compact-event {
+  color: #ffffff;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  margin: 8px 0;
 }

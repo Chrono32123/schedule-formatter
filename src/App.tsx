@@ -320,13 +320,14 @@ const clientSecret = import.meta.env.VITE_TWITCH_CLIENT_SECRET || '';
               </Typography>
             )}
             {events.map((event: ParsedEvent, index) => (
-              <Box key={index} className="event">
-                <Box className="event-content">
+              <Box maxWidth="md" key={index} className="event-container">
+                <div className="event-details">
                 <Typography variant="h6">
                   <strong>{event.summary}</strong> 
                 </Typography>
                 <Typography><strong>Start:</strong> {event.start}</Typography>
-                <Typography><strong>Category:</strong> {event.description}</Typography>
+                <Typography><strong>Category:</strong> {extractCategory(event.description)}</Typography>
+                </div>
                 {event.categoryImage && (
                   <img
                     className="event-img"
@@ -336,7 +337,6 @@ const clientSecret = import.meta.env.VITE_TWITCH_CLIENT_SECRET || '';
                     height="70"
                   />
                 )}
-                </Box>
               </Box>
             ))}
           </Box>
@@ -354,7 +354,7 @@ const clientSecret = import.meta.env.VITE_TWITCH_CLIENT_SECRET || '';
             {events.map((event: ParsedEvent, index) => (
               <Box key={index} className="compact-event">
                 <Typography>
-                  {event.discordTimestamp} {event.summary} - {event.description}
+                  {event.discordTimestamp} {event.summary} - {extractCategory(event.description)}
                 </Typography>
               </Box>
             ))}

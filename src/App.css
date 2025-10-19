@@ -121,39 +121,46 @@
   padding: 16px;
   border-radius: 8px;
   display: flex;
-  flex-direction: column;
-  align-items: center;
 }
 
+/* Container for each event (replaces outer Box sx props) */
+.event-container {
+  margin-bottom: 16px; /* Spacing between events */
+  padding: 16px; /* Card-like padding */
+  border: 1px solid #ddd; /* Subtle border */
+  border-radius: 4px; /* Rounded corners */
+  max-width: 60%; /* Respect maxWidth="md" from MUI */
+  display: inline-block;
+}
+
+/* Event inner layout (replaces inner Box sx props) */
 .event {
-  width: 100%;
-  background-color: #242424;
-  padding: 32px;
-  margin-bottom: 16px;
-  border: 1px solid #9146FF;
-  border-radius: 8px;
   display: flex;
-  flex-direction: row;
-  align-items: flex-start;
-  justify-content: space-between; /* Push image to right */
-  gap: 16px !important; /* Space between text and image */
-  box-sizing: border-box;
+  align-items: flex-start; /* Align items to the top */
+  gap: 16px; /* Space between details and image */
 }
 
-.event-content {
-  flex: 1; /* Text takes available space */
-  display: flex;
-  flex-direction: column;
-  min-width: 0; /* Prevent text overflow */
+/* Details column (replaces inner Box with flex: 1) */
+.event-details {
+  flex: 1; /* Takes remaining space */
 }
 
-.event-img {
+/* Category image styling */
+.event-image {
   width: 50px;
   height: 70px;
-  border: 2px solid #9146FF;
-  border-radius: 4px;
-  order: 2; /* Ensure image stays last */
-  align-self: flex-start; /* Align with top of text */
+  display: inline-block;
+  border-radius: 4px; /* Rounded corners for image */
+  object-fit: cover; /* Ensure image scales nicely */
+}
+
+@media (max-width: 600px) {
+  .event {
+    flex-direction: column; /* Stack vertically on small screens */
+  }
+  .event-image {
+    align-self: flex-start; /* Keep image aligned to start */
+  }
 }
 
 /* Compact view */

@@ -309,7 +309,7 @@ function App() {
               Upcoming Streams
             </Typography>
             {events.length === 0 && !error && !loading && (
-              <Typography sx={{ textAlign: 'center' }}>
+              <Typography sx={{ textAlign: 'center'}}>
                 No events found for the selected period.
               </Typography>
             )}
@@ -317,11 +317,11 @@ function App() {
               <Box key={index} className="event-container">
                 <div className="event">
                   <div className="event-details">
-                    <Typography variant="h6">
+                    <Typography variant="h6" sx={{fontSize: '32px'}}>
                       <strong>{event.summary}</strong>
                     </Typography>
-                    <Typography><strong>Start:</strong> {event.start}</Typography>
-                    <Typography><strong>Category:</strong> {extractCategory(event.description)}</Typography>
+                    <Typography sx={{fontSize: '24px'}}><strong>Category:</strong> {extractCategory(event.description)}</Typography>
+                    <Typography sx={{fontSize: '24px'}}><strong>Start:</strong> {event.start}</Typography>
                   </div>
                   {event.categoryImage && (
                     <img

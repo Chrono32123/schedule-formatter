@@ -1,8 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import moment from 'moment';
 import { Typography, Container, TextField, Select, Button, Box, MenuItem, Tabs, Tab } from '@mui/material';
 import axios from 'axios';
-import { Label } from '@mui/icons-material';
+import './App.css';
 
 interface ParsedEvent {
   summary: string;
@@ -42,57 +42,53 @@ function App() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [tabValue, setTabValue] = useState(0);
-  const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const clientId = import.meta.env.VITE_TWITCH_CLIENT_ID || '';
+  const clientSecret = import.meta.env.VITE_TWITCH_CLIENT_SECRET || '';
   const [accessToken, setAccessToken] = useState<string>('');
   const [tokenExpiry, setTokenExpiry] = useState<number>(0);
 
   const fetchAccessToken = async () => {
-  if (!clientId || !clientSecret) {
-    console.error('Missing Client-ID or Secret in .env');
-    return;
-  }
+    if (!clientId || !clientSecret) {
+      console.error('Missing Client-ID or Secret in .env');
+      return;
+    }
 
-  try {
-    const response = await axios.post('https://id.twitch.tv/oauth2/token', null, {
-      params: {
-        client_id: clientId,
-        client_secret: clientSecret,
-        grant_type: 'client_credentials',
-      },
-    });
+    try {
+      const response = await axios.post('https://id.twitch.tv/oauth2/token', null, {
+        params: {
+          client_id: clientId,
+          client_secret: clientSecret,
+          grant_type: 'client_credentials',
+        },
+      });
 
-    const { access_token, expires_in } = response.data;
-    setAccessToken(access_token);
-    setTokenExpiry(Date.now() + (expires_in * 1000)); // ms expiry
-    console.log('Token fetched successfully');
-  } catch (err) {
-    console.error('Token fetch failed:', err.response?.data || err.message);
-  }
-};
-
-// Env for secret (add after clientId line)
-const clientSecret = import.meta.env.VITE_TWITCH_CLIENT_SECRET || '';
+      const { access_token, expires_in } = response.data;
+      setAccessToken(access_token);
+      setTokenExpiry(Date.now() + (expires_in * 1000));
+      console.log('Token fetched successfully');
+    } catch (err) {
+      console.error('Token fetch failed:', err.response?.data || err.message);
+    }
+  };
 
   useEffect(() => {
     if (!clientId || !clientSecret) {
       setError('Missing Twitch Client-ID/Secret! Add to .env');
       return;
     }
-    fetchAccessToken(); // Initial fetch
+    fetchAccessToken();
 
-    // Refresh logic: Poll every 25 mins (or on expiry)
     const interval = setInterval(() => {
-      if (Date.now() > tokenExpiry - 60000) { // Refresh 1 min early
+      if (Date.now() > tokenExpiry - 60000) {
         fetchAccessToken();
       }
-    }, 1500000); // 25 min interval
+    }, 1500000);
 
     return () => clearInterval(interval);
   }, [clientId, clientSecret]);
 
   const extractCategory = (description: string): string | null => {
-    return description.slice(0, -1); //removes punctuation from category/description.
+    return description.slice(0, -1);
   };
 
   const fetchAndParseCalendar = async () => {
@@ -165,12 +161,10 @@ const clientSecret = import.meta.env.VITE_TWITCH_CLIENT_SECRET || '';
         parsedEvents.map(async (event) => {
           const category = extractCategory(event.description);
 
-          // Skip if no description/category.
           if (!category) {
             return { ...event, categoryImage: null };
           }
 
-          // Skip if no token
           if (!accessToken) {
             console.warn('No access token yet—skipping images');
             return { ...event, categoryImage: null };
@@ -191,7 +185,7 @@ const clientSecret = import.meta.env.VITE_TWITCH_CLIENT_SECRET || '';
               const errorText = await response.text();
               if (response.status === 401) {
                 console.error('401: Token invalid—refetching...', errorText);
-                await fetchAccessToken(); // Retry once
+                await fetchAccessToken();
                 return { ...event, categoryImage: null };
               }
               throw new Error(`API: ${response.status} - ${errorText}`);
@@ -209,7 +203,8 @@ const clientSecret = import.meta.env.VITE_TWITCH_CLIENT_SECRET || '';
           }
 
           return { ...event, categoryImage: null };
-          }));
+        })
+      );
 
       setEvents(enrichedEvents);
     } catch (err) {
@@ -228,7 +223,6 @@ const clientSecret = import.meta.env.VITE_TWITCH_CLIENT_SECRET || '';
     fetchAndParseCalendar();
   };
 
-// NEW: Copy compact events to clipboard
   const copyToClipboard = () => {
     const compactText = events
       .map((event) => `${event.discordTimestamp} ${event.summary} - ${event.description}`)
@@ -243,7 +237,6 @@ const clientSecret = import.meta.env.VITE_TWITCH_CLIENT_SECRET || '';
       });
   };
 
-  // NEW: Handle tab change
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
   };
@@ -282,11 +275,11 @@ const clientSecret = import.meta.env.VITE_TWITCH_CLIENT_SECRET || '';
         </Box>
         <Box className="form-group">
           <Select
-            id = "dateFormat"
-            label="Date Format: "
-            value = {dateFormat}
-            onChange = {(e) => setDateFormat(e.target.value)}
-            className = "input"
+            id="dateFormat"
+            value={dateFormat}
+            onChange={(e) => setDateFormat(e.target.value)}
+            className="form-input"
+            fullWidth
           >
             <MenuItem value="MM-DD-YYYY HH:mm A">MM-DD-YYYY HH:mm A</MenuItem>
             <MenuItem value="DD-MM-YYYY HH:mm A">DD-MM-YYYY HH:mm A</MenuItem>
@@ -303,7 +296,8 @@ const clientSecret = import.meta.env.VITE_TWITCH_CLIENT_SECRET || '';
           </Button>
         </Box>
       </Box>
-      {error && <Typography className="error">{error}</Typography>}
+      {error && <Typography>{error}</Typography>}
+      {events.length >0 && (
       <Box className="tabs">
         <Tabs value={tabValue} onChange={handleTabChange} centered>
           <Tab label="Detailed View" id="tab-0" aria-controls="tabpanel-0" />
@@ -320,32 +314,34 @@ const clientSecret = import.meta.env.VITE_TWITCH_CLIENT_SECRET || '';
               </Typography>
             )}
             {events.map((event: ParsedEvent, index) => (
-              <Box maxWidth="md" key={index} className="event-container">
-                <div className="event-details">
-                <Typography variant="h6">
-                  <strong>{event.summary}</strong> 
-                </Typography>
-                <Typography><strong>Start:</strong> {event.start}</Typography>
-                <Typography><strong>Category:</strong> {extractCategory(event.description)}</Typography>
+              <Box key={index} className="event-container">
+                <div className="event">
+                  <div className="event-details">
+                    <Typography variant="h6">
+                      <strong>{event.summary}</strong>
+                    </Typography>
+                    <Typography><strong>Start:</strong> {event.start}</Typography>
+                    <Typography><strong>Category:</strong> {extractCategory(event.description)}</Typography>
+                  </div>
+                  {event.categoryImage && (
+                    <img
+                      className="event-image"
+                      src={event.categoryImage}
+                      alt={`Category: ${extractCategory(event.description) || 'Unknown'}`}
+                      width="50"
+                      height="70"
+                    />
+                  )}
                 </div>
-                {event.categoryImage && (
-                  <img
-                    className="event-img"
-                    src={event.categoryImage}
-                    alt={`Category: ${extractCategory(event.description) || 'Unknown'}`}
-                    width="50"
-                    height="70"
-                  />
-                )}
               </Box>
             ))}
           </Box>
         </TabPanel>
         <TabPanel value={tabValue} index={1}>
-          <Box className="compact-events">
             <Typography variant="h5" className="subtitle">
               Discord Formatted Stream Schedule
             </Typography>
+          <Box className="compact-events">
             {events.length === 0 && !error && !loading && (
               <Typography sx={{ textAlign: 'center' }}>
                 No events found for the selected period.
@@ -372,6 +368,7 @@ const clientSecret = import.meta.env.VITE_TWITCH_CLIENT_SECRET || '';
           </Box>
         </TabPanel>
       </Box>
+      )}
     </Container>
   );
 }

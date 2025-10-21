@@ -300,8 +300,8 @@ function App() {
       {events.length >0 && (
       <Box className="tabs">
         <Tabs value={tabValue} onChange={handleTabChange} centered>
-          <Tab label="Detailed View" id="tab-0" aria-controls="tabpanel-0" />
-          <Tab label="Compact View" id="tab-1" aria-controls="tabpanel-1" />
+          <Tab label="Detailed List" id="tab-0" aria-controls="tabpanel-0" />
+          <Tab label="Discord Format" id="tab-1" aria-controls="tabpanel-1" />
         </Tabs>
         <TabPanel value={tabValue} index={0}>
           <Box className="events">

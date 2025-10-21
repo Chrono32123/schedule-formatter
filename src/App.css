@@ -1,7 +1,5 @@
 /* Root container for the entire app */
 .container {
-  width: 80%;
-  max-width: 800px;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -76,6 +74,12 @@
 .form-input .MuiMenuItem-root:hover {
   background-color: #9146FF; /* Purple background on hover */
   color: #ffffff; /* Keep text white on hover */
+}
+
+.tabs {
+  width: 100%;
+  max-width: 600%;
+  align-items: center;
 }
 
 .MuiTabs-root .MuiButtonBase-root {

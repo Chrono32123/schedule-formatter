@@ -2,6 +2,7 @@
   "name": "schedule-formatter",
   "homepage": "https://chrono32123.github.io/schedule-formatter",
   "version": "0.0.001",
+  "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite",

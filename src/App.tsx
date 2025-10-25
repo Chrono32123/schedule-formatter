@@ -3,6 +3,7 @@ import moment from 'moment';
 import { Typography, Container, TextField, Select, Button, Box, MenuItem, Tabs, Tab, InputLabel, Switch, FormControlLabel } from '@mui/material';
 import axios from 'axios';
 import './App.css';
+import Footer from './Footer';
 
 interface ParsedEvent {
   summary: string;
@@ -36,6 +37,7 @@ function TabPanel(props: TabPanelProps) {
 
 function App() {
   const [webcalUrl, setWebcalUrl] = useState('');
+  const [twitchUsername, setTwitchUsername] = useState('');
   const [daysForward, setDaysForward] = useState('7');
   const [dateFormat, setDateFormat] = useState('MM-DD-YYYY HH:mm A');
   const [events, setEvents] = useState<ParsedEvent[]>([]);
@@ -118,16 +120,54 @@ function App() {
     return () => clearInterval(interval);
   }, [clientId, clientSecret]);
 
+  // New function: Get broadcaster_id by username (requires your accessToken)
+const fetchBroadcasterId = async (username: string): Promise<string | null> => {
+  if (!accessToken || !clientId) return null;
+  try {
+    const response = await fetch(`https://api.twitch.tv/helix/users?login=${encodeURIComponent(username)}`, {
+      headers: {
+        'Client-ID': clientId,
+        'Authorization': `Bearer ${accessToken}`,
+      },
+    });
+    if (!response.ok) throw new Error(`API error: ${response.status}`);
+    const data = await response.json();
+    return data.data?.[0]?.id || null;
+  } catch (err) {
+    console.error('Failed to fetch broadcaster ID:', err);
+    setError(`Invalid Twitch username: ${username}`);
+    return null;
+  }
+};
+  
   const extractCategory = (description: string): string | null => {
     return description.slice(0, -1);
   };
 
-  const fetchAndParseCalendar = async () => {
+  const fetchAndParseCalendar = async (useTwitchMode = false) => {
     setError('');
     setEvents([]);
     setLoading(true);
 
-    const icsUrl = webcalUrl.replace(/^webcal:\/\//, 'https://');
+
+    let icsUrl: string;
+
+    if (useTwitchMode && twitchUsername) {
+      const broadcasterId = await fetchBroadcasterId(twitchUsername);
+      if (!broadcasterId) return; // Error already set
+      icsUrl = `https://api.twitch.tv/helix/schedule/icalendar?broadcaster_id=${broadcasterId}`;
+    } else {
+      icsUrl = webcalUrl.replace(/^webcal:\/\//, 'https://');
+    }
+
+    // Fetch ICS (your existing fetch + ICAL.parse works unchanged!)
+    const response = await fetch(icsUrl, { 
+      mode: 'cors',
+      headers: useTwitchMode ? {
+        'Client-ID': clientId,
+        'Authorization': `Bearer ${accessToken}`,
+      } : {},
+    });
 
     try {
       const response = await fetch(icsUrl, { mode: 'cors' });
@@ -245,14 +285,16 @@ function App() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!webcalUrl) {
-      setError('Please enter a valid webcal URL');
-      return;
-    }
-    fetchAndParseCalendar();
-  };
+// Updated handleSubmit
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  const twitchMode = !!twitchUsername; // Auto-detect mode
+  if (!twitchUsername && !webcalUrl) {
+    setError('Enter Twitch username or webcal URL');
+    return;
+  }
+  await fetchAndParseCalendar(twitchMode);
+};
 
   const copyToClipboard = () => {
     const compactText = events
@@ -274,11 +316,23 @@ function App() {
   };
 
   return (
-    <Container maxWidth="md" className="container">
+    <Container maxWidth="md" className="container" sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+      <Box sx={{ flexGrow: 1 }}>
       <Typography variant="h4" className="title">
         Easy Stream Schedule Tool
       </Typography>
       <Box component="form" onSubmit={handleSubmit} className="form-container">
+        <Box className="form-group">
+          <TextField
+            id="twitchUsername"
+            label="Twitch Username (auto-fetches schedule)"
+            value={twitchUsername}
+            onChange={(e) => setTwitchUsername(e.target.value)}
+            placeholder="e.g., shroud"
+            className="form-input"
+            fullWidth
+          />
+        </Box>
         <Box className="form-group">
           <TextField
             id="webcalUrl"
@@ -289,7 +343,7 @@ function App() {
             placeholder="webcal://example.com/calendar.ics"
             className="form-input"
             fullWidth
-          />
+            />
         </Box>
         <Box className="form-group">
           <Select
@@ -300,7 +354,7 @@ function App() {
             className="form-input"
             displayEmpty
             fullWidth
-          >
+            >
             <MenuItem value="7">7 Days</MenuItem>
             <MenuItem value="14">14 Days</MenuItem>
           </Select>
@@ -313,7 +367,7 @@ function App() {
             onChange={(e) => setDateFormat(e.target.value)}
             className="form-input"
             fullWidth
-          >
+            >
             
             <MenuItem value="MM-DD-YYYY HH:mm A">MM-DD-YYYY HH:mm A</MenuItem>
             <MenuItem value="DD-MM-YYYY HH:mm A">DD-MM-YYYY HH:mm A</MenuItem>
@@ -325,14 +379,14 @@ function App() {
             disabled={loading}
             variant="contained"
             className="button"
-          >
+            >
             {loading ? 'Loading...' : 'Fetch Events'}
           </Button>
         </Box>
       </Box>
       {error && <Typography>{error}</Typography>}
       {events.length >0 && (
-      <Box className="tabs">
+        <Box className="tabs">
         <Tabs value={tabValue} onChange={handleTabChange} centered>
           <Tab label="Detailed List" id="tab-0" aria-controls="tabpanel-0" />
           <Tab label="Discord Format" id="tab-1" aria-controls="tabpanel-1" />
@@ -359,11 +413,11 @@ function App() {
                   </div>
                   {event.categoryImage && (
                     <img
-                      className="event-image"
-                      src={event.categoryImage}
-                      alt={`Category: ${extractCategory(event.description) || 'Unknown'}`}
-                      width="50"
-                      height="70"
+                    className="event-image"
+                    src={event.categoryImage}
+                    alt={`Category: ${extractCategory(event.description) || 'Unknown'}`}
+                    width="50"
+                    height="70"
                     />
                   )}
                 </div>
@@ -406,20 +460,20 @@ function App() {
               <FormControlLabel
                 control={
                   <Switch
-                    checked={previewMode}
-                    onChange={(e) => setPreviewMode(e.target.checked)}
-                    sx={{
-                      '& .MuiSwitch-switchBase.Mui-checked': {
-                        color: '#9146FF',
-                      },
-                      '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
-                        backgroundColor: '#9146FF',
-                      },
-                    }}
-                    />
+                  checked={previewMode}
+                  onChange={(e) => setPreviewMode(e.target.checked)}
+                  sx={{
+                    '& .MuiSwitch-switchBase.Mui-checked': {
+                      color: '#9146FF',
+                    },
+                    '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                      backgroundColor: '#9146FF',
+                    },
+                  }}
+                  />
                 }
                 label="Preview Toggle"
-              />
+                />
               </Box>
             {events.map((event: ParsedEvent, index) => (
               <Box key={index} className="compact-event">
@@ -434,7 +488,7 @@ function App() {
                   variant="contained"
                   className="button"
                   onClick={copyToClipboard}
-                >
+                  >
                   {copyButtonText}
                 </Button>
               </Box>
@@ -443,6 +497,8 @@ function App() {
         </TabPanel>
       </Box>
       )}
+      </Box>
+      <Footer />
     </Container>
   );
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import moment from 'moment';
-import { Typography, Container, TextField, Select, Button, Box, MenuItem, Tabs, Tab } from '@mui/material';
+import { Typography, Container, TextField, Select, Button, Box, MenuItem, Tabs, Tab, InputLabel, Switch, FormControlLabel } from '@mui/material';
 import axios from 'axios';
 import './App.css';
 
@@ -46,6 +46,37 @@ function App() {
   const clientSecret = import.meta.env.VITE_TWITCH_CLIENT_SECRET || '';
   const [accessToken, setAccessToken] = useState<string>('');
   const [tokenExpiry, setTokenExpiry] = useState<number>(0);
+  const [copyButtonText, setCopyButtonText] = useState('Copy to Clipboard');
+  const [timestampFormat, setTimestampFormat] = useState('F');
+  const [previewMode, setPreviewMode] = useState(false);
+
+  const currentTime = moment();
+  const timestampFormats = {
+    t: currentTime.format('h:mm A'), // Short time
+    T: currentTime.format('h:mm:ss A'), // Long time
+    d: currentTime.format('MM/DD/YYYY'), // Short date
+    D: currentTime.format('MMMM D, YYYY'), // Long date
+    f: currentTime.format('MMMM D, YYYY h:mm A'), // Short date/time
+    F: currentTime.format('dddd, MMMM D, YYYY h:mm A'), // Long date/time
+    R: 'now', // Relative (simplified as "now" for current time)
+  };
+
+   const formatDiscordTimestamp = (discordTimestamp: string): string => {
+    const match = discordTimestamp.match(/<t:(\d+):([a-zA-Z])>/);
+    if (!match) return discordTimestamp; // Fallback to raw if invalid
+    const [, unixTimestamp, style] = match;
+    const timestamp = moment.unix(parseInt(unixTimestamp));
+    switch (style) {
+      case 't': return timestamp.format('h:mm A');
+      case 'T': return timestamp.format('h:mm:ss A');
+      case 'd': return timestamp.format('MM/DD/YYYY');
+      case 'D': return timestamp.format('MMMM D, YYYY');
+      case 'f': return timestamp.format('MMMM D, YYYY h:mm A');
+      case 'F': return timestamp.format('dddd, MMMM D, YYYY h:mm A');
+      case 'R': return timestamp.fromNow();
+      default: return discordTimestamp;
+    }
+  };
 
   const fetchAccessToken = async () => {
     if (!clientId || !clientSecret) {
@@ -142,7 +173,7 @@ function App() {
               parsedEvents.push({
                 summary: event.summary || 'No title',
                 start: occurrenceStart.format(dateFormat),
-                discordTimestamp: `<t:${occurrenceStart.unix()}:F>`,
+                discordTimestamp: `<t:${occurrenceStart.unix()}:${timestampFormat}>`,
                 description: event.description || 'No description',
               });
             }
@@ -229,7 +260,8 @@ function App() {
       .join('\n');
     navigator.clipboard.writeText(compactText)
       .then(() => {
-        alert('Events copied to clipboard!');
+        setCopyButtonText('Copied!');
+        setTimeout(() => setCopyButtonText('Copy to Clipboard!') ,2000);
       })
       .catch((err) => {
         console.error('Failed to copy:', err);
@@ -250,7 +282,7 @@ function App() {
         <Box className="form-group">
           <TextField
             id="webcalUrl"
-            label="Webcal URL"
+            label="Stream Schedule Calendar URL"
             variant="outlined"
             value={webcalUrl}
             onChange={(e) => setWebcalUrl(e.target.value)}
@@ -263,10 +295,10 @@ function App() {
           <Select
             id="daysForward"
             value={daysForward}
+            label="Select Days Forward"
             onChange={(e) => setDaysForward(e.target.value)}
             className="form-input"
             displayEmpty
-            renderValue={(value) => (value ? `${value} Days` : 'Select Days')}
             fullWidth
           >
             <MenuItem value="7">7 Days</MenuItem>
@@ -277,10 +309,12 @@ function App() {
           <Select
             id="dateFormat"
             value={dateFormat}
+            label="Date Format"
             onChange={(e) => setDateFormat(e.target.value)}
             className="form-input"
             fullWidth
           >
+            
             <MenuItem value="MM-DD-YYYY HH:mm A">MM-DD-YYYY HH:mm A</MenuItem>
             <MenuItem value="DD-MM-YYYY HH:mm A">DD-MM-YYYY HH:mm A</MenuItem>
           </Select>
@@ -338,19 +372,59 @@ function App() {
           </Box>
         </TabPanel>
         <TabPanel value={tabValue} index={1}>
-            <Typography variant="h5" className="subtitle">
+          <Typography variant="h5" className="subtitle">
               Discord Formatted Stream Schedule
-            </Typography>
+          </Typography>
           <Box className="compact-events">
             {events.length === 0 && !error && !loading && (
               <Typography sx={{ textAlign: 'center' }}>
                 No events found for the selected period.
               </Typography>
             )}
+            <Box sx={{display: 'inline', justifyContent: 'center', mb: 2}}>
+            <Select
+              fullWidth
+              className = "form-input"
+              id="discordTimeStampFormat" 
+              value={timestampFormat}
+              label="Discord Timestamp Style"
+              onChange={(e) => {
+                setTimestampFormat(e.target.value);
+                setEvents(events.map(item => ({
+                  ...item,
+                  discordTimestamp: item.discordTimestamp.replace(/:[a-zA-Z]>$/, `:${e.target.value}>`)
+                })));
+              }}>
+              <MenuItem value="F">Long Date/Time ({timestampFormats.F})</MenuItem>
+              <MenuItem value="f">Short Date/Time ({timestampFormats.f})</MenuItem>
+              <MenuItem value="t">Short Time ({timestampFormats.t})</MenuItem>
+              <MenuItem value="T">Long Time ({timestampFormats.T})</MenuItem>
+              <MenuItem value="d">Short Date ({timestampFormats.d})</MenuItem>
+              <MenuItem value="D">Long Date ({timestampFormats.D})</MenuItem>
+              <MenuItem value="R">Relative ({timestampFormats.R})</MenuItem>
+              </Select>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={previewMode}
+                    onChange={(e) => setPreviewMode(e.target.checked)}
+                    sx={{
+                      '& .MuiSwitch-switchBase.Mui-checked': {
+                        color: '#9146FF',
+                      },
+                      '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                        backgroundColor: '#9146FF',
+                      },
+                    }}
+                    />
+                }
+                label="Preview Toggle"
+              />
+              </Box>
             {events.map((event: ParsedEvent, index) => (
               <Box key={index} className="compact-event">
                 <Typography>
-                  {event.discordTimestamp} {event.summary} - {extractCategory(event.description)}
+                   {previewMode ? formatDiscordTimestamp(event.discordTimestamp) : event.discordTimestamp} {event.summary} - {extractCategory(event.description)}
                 </Typography>
               </Box>
             ))}
@@ -361,7 +435,7 @@ function App() {
                   className="button"
                   onClick={copyToClipboard}
                 >
-                  Copy to Clipboard
+                  {copyButtonText}
                 </Button>
               </Box>
             )}

@@ -66,6 +66,14 @@
   color: #ffffff; /* White text for selected value */
 }
 
+.MuiFormControl-root{
+  width: 100%;
+}
+
+.select-label{
+  color: #ffffff !important;
+}
+
 .form-input .MuiMenuItem-root {
   color: #ffffff; /* White text for dropdown items */
   background-color: #242424; /* Match input background */

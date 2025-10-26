@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import moment from 'moment';
-import { Typography, Container, TextField, Select, Button, Box, MenuItem, Tabs, Tab, InputLabel, Switch, FormControlLabel } from '@mui/material';
+import { Typography, Container, TextField, Select, Button, Box, MenuItem, Tabs, Tab, InputLabel, Switch, FormControlLabel, FormControl } from '@mui/material';
 import axios from 'axios';
 import './App.css';
 import Footer from './Footer';
@@ -11,6 +11,7 @@ interface ParsedEvent {
   discordTimestamp: string;
   description: string;
   categoryImage?: string | null;
+  unixTimestamp: number;
 }
 
 // Custom TabPanel component
@@ -39,7 +40,7 @@ function App() {
   const [webcalUrl, setWebcalUrl] = useState('');
   const [twitchUsername, setTwitchUsername] = useState('');
   const [daysForward, setDaysForward] = useState('7');
-  const [dateFormat, setDateFormat] = useState('MM-DD-YYYY HH:mm A');
+  const [dateFormat, setDateFormat] = useState('MM-DD-YYYY hh:mm A');
   const [events, setEvents] = useState<ParsedEvent[]>([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -120,7 +121,25 @@ function App() {
     return () => clearInterval(interval);
   }, [clientId, clientSecret]);
 
-  // New function: Get broadcaster_id by username (requires your accessToken)
+  useEffect(() => {
+  if (events.length > 0) {
+    const updatedEvents = events
+      .map((event) => {
+        const startMoment = moment.unix(event.unixTimestamp);
+        if (!startMoment.isValid()) {
+          console.warn(`Invalid date for event: ${event.summary}`);
+          return event; // Return unchanged if invalid
+        }
+        return {
+          ...event,
+          start: startMoment.format(dateFormat), // Reformat with new dateFormat
+        };
+      })
+      // .sort((a, b) => moment(a.start, dateFormat).diff(moment(b.start, dateFormat))); // Re-sort events
+    setEvents(updatedEvents);
+  }
+}, [dateFormat]);
+
 const fetchBroadcasterId = async (username: string): Promise<string | null> => {
   if (!accessToken || !clientId) return null;
   try {
@@ -193,14 +212,14 @@ const fetchBroadcasterId = async (username: string): Promise<string | null> => {
       vevents.forEach((vevent) => {
         const event = new window.ICAL.Event(vevent);
         const startDate = event.startDate ? moment(event.startDate.toJSDate()) : null;
-        const endDate = event.endDate ? moment(event.endDate.toJSDate()) : startDate;
 
         if (startDate && startDate.isValid() && startDate.isBetween(now, endDateRange, null, '[]')) {
           parsedEvents.push({
             summary: event.summary || 'No title',
             start: startDate.format(dateFormat),
-            discordTimestamp: `<t:${startDate.unix()}:F>`,
+            discordTimestamp: `<t:${startDate.unix()}:${timestampFormat}>`,
             description: event.description || 'No description',
+            unixTimestamp: startDate.unix()
           });
         }
 
@@ -215,13 +234,14 @@ const fetchBroadcasterId = async (username: string): Promise<string | null> => {
                 start: occurrenceStart.format(dateFormat),
                 discordTimestamp: `<t:${occurrenceStart.unix()}:${timestampFormat}>`,
                 description: event.description || 'No description',
+                unixTimestamp: occurrenceStart.unix()
               });
             }
           }
         }
       });
 
-      parsedEvents.sort((a, b) => moment(a.start).diff(moment(b.start)));
+      parsedEvents.sort((a, b) => moment(a.start, dateFormat).diff(moment(b.start, dateFormat)));
 
       if (!clientId) {
         setEvents(parsedEvents);
@@ -298,7 +318,7 @@ const handleSubmit = async (e: React.FormEvent) => {
 
   const copyToClipboard = () => {
     const compactText = events
-      .map((event) => `${event.discordTimestamp} ${event.summary} - ${event.description}`)
+      .map((event) => `${event.discordTimestamp} ${event.summary} - ${extractCategory(event.description)}`)
       .join('\n');
     navigator.clipboard.writeText(compactText)
       .then(() => {
@@ -325,7 +345,7 @@ const handleSubmit = async (e: React.FormEvent) => {
         <Box className="form-group">
           <TextField
             id="twitchUsername"
-            label="Twitch Username (auto-fetches schedule)"
+            label="Your Twitch Username"
             value={twitchUsername}
             onChange={(e) => setTwitchUsername(e.target.value)}
             placeholder="e.g., shroud"
@@ -333,6 +353,7 @@ const handleSubmit = async (e: React.FormEvent) => {
             fullWidth
           />
         </Box>
+        <Typography variant="h5" className="form-input" sx={{ mb: 2 }}>- OR -</Typography>
         <Box className="form-group">
           <TextField
             id="webcalUrl"
@@ -346,32 +367,38 @@ const handleSubmit = async (e: React.FormEvent) => {
             />
         </Box>
         <Box className="form-group">
-          <Select
-            id="daysForward"
-            value={daysForward}
-            label="Select Days Forward"
-            onChange={(e) => setDaysForward(e.target.value)}
-            className="form-input"
-            displayEmpty
-            fullWidth
-            >
-            <MenuItem value="7">7 Days</MenuItem>
-            <MenuItem value="14">14 Days</MenuItem>
-          </Select>
+          <FormControl>
+            <InputLabel className="select-label" id="days-forward-label">Number of Days to Find</InputLabel>
+            <Select
+              id="daysForward"
+              value={daysForward}
+              labelId="days-forward-label"
+              label="Number of Days to Find"
+              onChange={(e) => setDaysForward(e.target.value)}
+              className="form-input"
+              fullWidth
+              >
+              <MenuItem value="7">7 Days</MenuItem>
+              <MenuItem value="14">14 Days</MenuItem>
+            </Select>
+          </FormControl>
         </Box>
         <Box className="form-group">
+          <FormControl>
+            <InputLabel className="select-label" id="date-format-label">Date Format</InputLabel>
           <Select
             id="dateFormat"
             value={dateFormat}
             label="Date Format"
+            labelId='Date Format'
             onChange={(e) => setDateFormat(e.target.value)}
             className="form-input"
             fullWidth
             >
-            
-            <MenuItem value="MM-DD-YYYY HH:mm A">MM-DD-YYYY HH:mm A</MenuItem>
-            <MenuItem value="DD-MM-YYYY HH:mm A">DD-MM-YYYY HH:mm A</MenuItem>
+            <MenuItem value="MM-DD-YYYY hh:mm A">MM-DD-YYYY hh:mm A</MenuItem>
+            <MenuItem value="DD-MM-YYYY hh:mm A">DD-MM-YYYY hh:mm A</MenuItem>
           </Select>
+          </FormControl>
         </Box>
         <Box sx={{ display: 'flex', gap: '10px', justifyContent: 'center', width: '100%' }}>
           <Button
@@ -436,12 +463,15 @@ const handleSubmit = async (e: React.FormEvent) => {
               </Typography>
             )}
             <Box sx={{display: 'inline', justifyContent: 'center', mb: 2}}>
+            <FormControl>
+            <InputLabel className="select-label" id="discord-format-label">Discord Timestamp Format</InputLabel>
             <Select
               fullWidth
               className = "form-input"
               id="discordTimeStampFormat" 
+              labelId='Discord Timestamp Format'
               value={timestampFormat}
-              label="Discord Timestamp Style"
+              label="Discord Timestamp Format"
               onChange={(e) => {
                 setTimestampFormat(e.target.value);
                 setEvents(events.map(item => ({
@@ -457,6 +487,7 @@ const handleSubmit = async (e: React.FormEvent) => {
               <MenuItem value="D">Long Date ({timestampFormats.D})</MenuItem>
               <MenuItem value="R">Relative ({timestampFormats.R})</MenuItem>
               </Select>
+              </FormControl>
               <FormControlLabel
                 control={
                   <Switch

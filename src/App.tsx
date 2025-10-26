@@ -366,6 +366,7 @@ const handleSubmit = async (e: React.FormEvent) => {
             fullWidth
             />
         </Box>
+        <Typography variant="h5" className="form-input" sx={{ mb: 2, alignSelf: 'flex-start' }}>Options</Typography>
         <Box className="form-group">
           <FormControl>
             <InputLabel className="select-label" id="days-forward-label">Number of Days to Find</InputLabel>

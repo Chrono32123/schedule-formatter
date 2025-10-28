@@ -2,6 +2,7 @@
 .container {
   min-height: 100vh;
   display: flex;
+  justify-content: space-between;
   flex-direction: column;
   align-items: center;
   padding: 24px;
@@ -10,6 +11,8 @@
 
 .title {
   padding-bottom: 15px;
+  align-self: center;
+  text-align: center;
 }
 
 .subtitle {
@@ -17,14 +20,28 @@
   text-align: center;
 }
 
-/* Form container */
-.form-container {
-  width: 100%;
-  max-width: 600px;
+.page-wrapper {
   display: flex;
   flex-direction: column;
   align-items: center;
+  max-width: 700px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* Form container */
+.form-container {
+  max-width: 500px;
+  width: 100%;
   padding-bottom: 25px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.results-wrapper {
+  width: 100%;
+  margin-top: 2rem;
 }
 
 /* Form inputs */

@@ -336,8 +336,8 @@ const handleSubmit = async (e: React.FormEvent) => {
   };
 
   return (
-    <Container maxWidth="md" className="container" sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-      <Box sx={{ flexGrow: 1 }}>
+    <Container maxWidth="md" className="container">
+      <Box className="page-wrapper">
       <Typography variant="h4" className="title">
         Easy Stream Schedule Tool
       </Typography>
@@ -414,125 +414,127 @@ const handleSubmit = async (e: React.FormEvent) => {
       </Box>
       {error && <Typography>{error}</Typography>}
       {events.length >0 && (
-        <Box className="tabs">
-        <Tabs value={tabValue} onChange={handleTabChange} centered>
-          <Tab label="Detailed List" id="tab-0" aria-controls="tabpanel-0" />
-          <Tab label="Discord Format" id="tab-1" aria-controls="tabpanel-1" />
-        </Tabs>
-        <TabPanel value={tabValue} index={0}>
-          <Box className="events">
-            <Typography variant="h5" className="subtitle">
-              Upcoming Streams
-            </Typography>
-            {events.length === 0 && !error && !loading && (
-              <Typography sx={{ textAlign: 'center'}}>
-                No events found for the selected period.
+        <Box className="results-container">
+          <Box className="tabs">
+          <Tabs value={tabValue} onChange={handleTabChange} centered>
+            <Tab label="Detailed List" id="tab-0" aria-controls="tabpanel-0" />
+            <Tab label="Discord Format" id="tab-1" aria-controls="tabpanel-1" />
+          </Tabs>
+          <TabPanel value={tabValue} index={0}>
+            <Box className="events">
+              <Typography variant="h5" className="subtitle">
+                Upcoming Streams
               </Typography>
-            )}
-            {events.map((event: ParsedEvent, index) => (
-              <Box key={index} className="event-container">
-                <div className="event">
-                  <div className="event-details">
-                    <Typography variant="h6" sx={{fontSize: '32px'}}>
-                      <strong>{event.summary}</strong>
-                    </Typography>
-                    <Typography sx={{fontSize: '24px'}}><strong>Category:</strong> {extractCategory(event.description)}</Typography>
-                    <Typography sx={{fontSize: '24px'}}><strong>Start:</strong> {event.start}</Typography>
-                  </div>
-                  {event.categoryImage && (
-                    <img
-                    className="event-image"
-                    src={event.categoryImage}
-                    alt={`Category: ${extractCategory(event.description) || 'Unknown'}`}
-                    width="50"
-                    height="70"
-                    />
-                  )}
-                </div>
-              </Box>
-            ))}
-          </Box>
-        </TabPanel>
-        <TabPanel value={tabValue} index={1}>
-          <Typography variant="h5" className="subtitle">
-              Discord Formatted Stream Schedule
-          </Typography>
-          <Box className="compact-events">
-            {events.length === 0 && !error && !loading && (
-              <Typography sx={{ textAlign: 'center' }}>
-                No events found for the selected period.
-              </Typography>
-            )}
-            <Box sx={{display: 'inline', justifyContent: 'center', mb: 2}}>
-            <FormControl>
-            <InputLabel className="select-label" id="discord-format-label">Discord Timestamp Format</InputLabel>
-            <Select
-              fullWidth
-              className = "form-input"
-              id="discordTimeStampFormat" 
-              labelId='Discord Timestamp Format'
-              value={timestampFormat}
-              label="Discord Timestamp Format"
-              onChange={(e) => {
-                setTimestampFormat(e.target.value);
-                setEvents(events.map(item => ({
-                  ...item,
-                  discordTimestamp: item.discordTimestamp.replace(/:[a-zA-Z]>$/, `:${e.target.value}>`)
-                })));
-              }}>
-              <MenuItem value="F">Long Date/Time ({timestampFormats.F})</MenuItem>
-              <MenuItem value="f">Short Date/Time ({timestampFormats.f})</MenuItem>
-              <MenuItem value="t">Short Time ({timestampFormats.t})</MenuItem>
-              <MenuItem value="T">Long Time ({timestampFormats.T})</MenuItem>
-              <MenuItem value="d">Short Date ({timestampFormats.d})</MenuItem>
-              <MenuItem value="D">Long Date ({timestampFormats.D})</MenuItem>
-              <MenuItem value="R">Relative ({timestampFormats.R})</MenuItem>
-              </Select>
-              </FormControl>
-              <FormControlLabel
-                control={
-                  <Switch
-                  checked={previewMode}
-                  onChange={(e) => setPreviewMode(e.target.checked)}
-                  sx={{
-                    '& .MuiSwitch-switchBase.Mui-checked': {
-                      color: '#9146FF',
-                    },
-                    '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
-                      backgroundColor: '#9146FF',
-                    },
-                  }}
-                  />
-                }
-                label="Preview Toggle"
-                />
-              </Box>
-            {events.map((event: ParsedEvent, index) => (
-              <Box key={index} className="compact-event">
-                <Typography>
-                   {previewMode ? formatDiscordTimestamp(event.discordTimestamp) : event.discordTimestamp} {event.summary} - {extractCategory(event.description)}
+              {events.length === 0 && !error && !loading && (
+                <Typography sx={{ textAlign: 'center'}}>
+                  No events found for the selected period.
                 </Typography>
-              </Box>
-            ))}
-            {events.length > 0 && (
-              <Box className="copy-button-container">
-                <Button
-                  variant="contained"
-                  className="button"
-                  onClick={copyToClipboard}
-                  >
-                  {copyButtonText}
-                </Button>
-              </Box>
-            )}
+              )}
+              {events.map((event: ParsedEvent, index) => (
+                <Box key={index} className="event-container">
+                  <div className="event">
+                    <div className="event-details">
+                      <Typography variant="h6" sx={{fontSize: '32px'}}>
+                        <strong>{event.summary}</strong>
+                      </Typography>
+                      <Typography sx={{fontSize: '24px'}}><strong>Category:</strong> {extractCategory(event.description)}</Typography>
+                      <Typography sx={{fontSize: '24px'}}><strong>Start:</strong> {event.start}</Typography>
+                    </div>
+                    {event.categoryImage && (
+                      <img
+                      className="event-image"
+                      src={event.categoryImage}
+                      alt={`Category: ${extractCategory(event.description) || 'Unknown'}`}
+                      width="50"
+                      height="70"
+                      />
+                    )}
+                  </div>
+                </Box>
+              ))}
+            </Box>
+          </TabPanel>
+          <TabPanel value={tabValue} index={1}>
+            <Typography variant="h5" className="subtitle">
+                Discord Formatted Stream Schedule
+            </Typography>
+            <Box className="compact-events">
+              {events.length === 0 && !error && !loading && (
+                <Typography sx={{ textAlign: 'center' }}>
+                  No events found for the selected period.
+                </Typography>
+              )}
+              <Box sx={{display: 'inline', justifyContent: 'center', mb: 2}}>
+              <FormControl>
+              <InputLabel className="select-label" id="discord-format-label">Discord Timestamp Format</InputLabel>
+              <Select
+                fullWidth
+                className = "form-input"
+                id="discordTimeStampFormat" 
+                labelId='Discord Timestamp Format'
+                value={timestampFormat}
+                label="Discord Timestamp Format"
+                onChange={(e) => {
+                  setTimestampFormat(e.target.value);
+                  setEvents(events.map(item => ({
+                    ...item,
+                    discordTimestamp: item.discordTimestamp.replace(/:[a-zA-Z]>$/, `:${e.target.value}>`)
+                  })));
+                }}>
+                <MenuItem value="F">Long Date/Time ({timestampFormats.F})</MenuItem>
+                <MenuItem value="f">Short Date/Time ({timestampFormats.f})</MenuItem>
+                <MenuItem value="t">Short Time ({timestampFormats.t})</MenuItem>
+                <MenuItem value="T">Long Time ({timestampFormats.T})</MenuItem>
+                <MenuItem value="d">Short Date ({timestampFormats.d})</MenuItem>
+                <MenuItem value="D">Long Date ({timestampFormats.D})</MenuItem>
+                <MenuItem value="R">Relative ({timestampFormats.R})</MenuItem>
+                </Select>
+                </FormControl>
+                <FormControlLabel
+                  control={
+                    <Switch
+                    checked={previewMode}
+                    onChange={(e) => setPreviewMode(e.target.checked)}
+                    sx={{
+                      '& .MuiSwitch-switchBase.Mui-checked': {
+                        color: '#9146FF',
+                      },
+                      '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                        backgroundColor: '#9146FF',
+                      },
+                    }}
+                    />
+                  }
+                  label="Preview Toggle"
+                  />
+                </Box>
+              {events.map((event: ParsedEvent, index) => (
+                <Box key={index} className="compact-event">
+                  <Typography>
+                    {previewMode ? formatDiscordTimestamp(event.discordTimestamp) : event.discordTimestamp} {event.summary} - {extractCategory(event.description)}
+                  </Typography>
+                </Box>
+              ))}
+              {events.length > 0 && (
+                <Box className="copy-button-container">
+                  <Button
+                    variant="contained"
+                    className="button"
+                    onClick={copyToClipboard}
+                    >
+                    {copyButtonText}
+                  </Button>
+                </Box>
+              )}
+            </Box>
+          </TabPanel>
           </Box>
-        </TabPanel>
-      </Box>
+        </Box>
       )}
       </Box>
       <Footer />
-    </Container>
-  );
+      </Container>
+    );
 }
 
 export default App;

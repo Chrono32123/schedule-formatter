@@ -1,11 +1,13 @@
-import { useState, useEffect } from 'react';
-import moment from 'moment';
+import { useState, useEffect, useCallback } from 'react';
+import moment, { max } from 'moment';
 import { Typography, Container, TextField, Select, Button, Box, MenuItem, Tabs, Tab, InputLabel, Switch, FormControlLabel, FormControl } from '@mui/material';
 import axios from 'axios';
 import './App.css';
 import Footer from './Footer';
+import { GenerateScheduleImage, ScheduleImageTemplate } from './components/ScheduleImage';
 
-interface ParsedEvent {
+
+export interface ParsedEvent {
   summary: string;
   start: string;
   discordTimestamp: string;
@@ -52,6 +54,13 @@ function App() {
   const [copyButtonText, setCopyButtonText] = useState('Copy to Clipboard');
   const [timestampFormat, setTimestampFormat] = useState('F');
   const [previewMode, setPreviewMode] = useState(false);
+  const [profileImageUrl, setProfileImageUrl] = useState<string>('');
+
+
+  const imageSize = { width: 1080, height: 1350 };
+  const maxEvents = 7;
+  const eventsForImage = events.slice(0, maxEvents);
+  const eventCount = eventsForImage.length;
 
   const currentTime = moment();
   const timestampFormats = {
@@ -140,23 +149,30 @@ function App() {
   }
 }, [dateFormat]);
 
-const fetchBroadcasterId = async (username: string): Promise<string | null> => {
-  if (!accessToken || !clientId) return null;
+const fetchBroadcasterInfo = async (username: string) => {
+  if (!accessToken || !clientId) return;
+
   try {
-    const response = await fetch(`https://api.twitch.tv/helix/users?login=${encodeURIComponent(username)}`, {
-      headers: {
-        'Client-ID': clientId,
-        'Authorization': `Bearer ${accessToken}`,
-      },
-    });
-    if (!response.ok) throw new Error(`API error: ${response.status}`);
-    const data = await response.json();
-    return data.data?.[0]?.id || null;
-  } catch (err) {
-    console.error('Failed to fetch broadcaster ID:', err);
-    setError(`Invalid Twitch username: ${username}`);
-    return null;
+    const res = await fetch(
+      `https://api.twitch.tv/helix/users?login=${encodeURIComponent(username)}`,
+      {
+        headers: {
+          'Client-ID': clientId,
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }
+    );
+    if (!res.ok) throw new Error('Twitch API error');
+    const json = await res.json();
+    const user = json.data?.[0];
+    if (user) {
+      setProfileImageUrl(user.profile_image_url || '');
+      return user.id;
+    }
+  } catch (e) {
+    console.error(e);
   }
+  return null;
 };
   
   const extractCategory = (description: string): string | null => {
@@ -172,7 +188,7 @@ const fetchBroadcasterId = async (username: string): Promise<string | null> => {
     let icsUrl: string;
 
     if (useTwitchMode && twitchUsername) {
-      const broadcasterId = await fetchBroadcasterId(twitchUsername);
+      const broadcasterId = useTwitchMode ? await fetchBroadcasterInfo(twitchUsername) :  null;
       if (!broadcasterId) return; // Error already set
       icsUrl = `https://api.twitch.tv/helix/schedule/icalendar?broadcaster_id=${broadcasterId}`;
     } else {
@@ -369,23 +385,6 @@ const handleSubmit = async (e: React.FormEvent) => {
         <Typography variant="h5" className="form-input" sx={{ mb: 2, alignSelf: 'flex-start' }}>Options</Typography>
         <Box className="form-group">
           <FormControl>
-            <InputLabel className="select-label" id="days-forward-label">Number of Days to Find</InputLabel>
-            <Select
-              id="daysForward"
-              value={daysForward}
-              labelId="days-forward-label"
-              label="Number of Days to Find"
-              onChange={(e) => setDaysForward(e.target.value)}
-              className="form-input"
-              fullWidth
-              >
-              <MenuItem value="7">7 Days</MenuItem>
-              <MenuItem value="14">14 Days</MenuItem>
-            </Select>
-          </FormControl>
-        </Box>
-        <Box className="form-group">
-          <FormControl>
             <InputLabel className="select-label" id="date-format-label">Date Format</InputLabel>
           <Select
             id="dateFormat"
@@ -417,8 +416,8 @@ const handleSubmit = async (e: React.FormEvent) => {
         <Box className="results-container">
           <Box className="tabs">
           <Tabs value={tabValue} onChange={handleTabChange} centered>
-            <Tab label="Detailed List" id="tab-0" aria-controls="tabpanel-0" />
-            <Tab label="Discord Format" id="tab-1" aria-controls="tabpanel-1" />
+            <Tab label="Preview & Export" id="tab-0" />
+            <Tab label="Discord Format" id="tab-1" />
           </Tabs>
           <TabPanel value={tabValue} index={0}>
             <Box className="events">
@@ -452,6 +451,25 @@ const handleSubmit = async (e: React.FormEvent) => {
                   </div>
                 </Box>
               ))}
+              <Box className="export-button-container">
+                <Button
+                  variant="contained"
+                  className="button generate-image-btn"
+                  onClick={() =>
+                    GenerateScheduleImage({
+                      events,
+                      eventCount,
+                      twitchUsername,
+                      daysForward,
+                      profileImageUrl,
+                      extractCategory,
+                      size: imageSize
+                    })
+                  }
+                >
+                  Download Schedule Image
+                </Button>
+              </Box>
             </Box>
           </TabPanel>
           <TabPanel value={tabValue} index={1}>
@@ -528,6 +546,17 @@ const handleSubmit = async (e: React.FormEvent) => {
               )}
             </Box>
           </TabPanel>
+          {events.length > 0 && (
+            <ScheduleImageTemplate
+              events={eventsForImage}
+              eventCount={eventsForImage.length}
+              twitchUsername={twitchUsername}
+              daysForward={daysForward}
+              profileImageUrl={profileImageUrl}
+              extractCategory={extractCategory}
+              size={imageSize}
+            />
+          )}
           </Box>
         </Box>
       )}

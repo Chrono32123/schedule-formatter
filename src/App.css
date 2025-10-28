@@ -196,3 +196,15 @@
   justify-content: center;
   margin-top: 16px;
 }
+
+/* Export button container (inside the tab) */
+.export-button-container {
+  display: flex;
+  justify-content: center;
+  margin-top: 24px;
+}
+
+/* Bright-green “download” button */
+.generate-image-btn {
+  background-color: #00b300 !important;
+}

@@ -1,5 +1,5 @@
 // src/components/ScheduleImage.tsx
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { toPng } from 'html-to-image';
 import { ParsedEvent } from '../App';
 import { Typography } from '@mui/material';
@@ -25,12 +25,15 @@ export const GenerateScheduleImage = async (props: Props): Promise<void> => {
   const { eventCount } = props;
   const node = document.getElementById('schedule-image-canvas');
   if (!node) return;
-
-  // Fixed size for 1080×1350
-  node.style.setProperty('--target-width', size.width.toString(),'px');
-  node.style.setProperty('--target-height', size.height.toString(),'px');
-  node.style.setProperty('--event-count', eventCount.toString());
-  node.style.setProperty('--fit-scale', (Math.max(0.95 - (eventCount - 1) * 0.04)).toString());
+  // Set CSS variables on the canvas node. Use px for width/height and
+  // a unitless value for --scale (scale relative to the base 960px layout).
+  node.style.setProperty('--target-width', `${size.width}px`);
+  node.style.setProperty('--target-height', `${size.height}px`);
+  node.style.setProperty('--event-count', String(eventCount));
+  const fitScale = Math.max(0.95 - (eventCount - 1) * 0.06, 0.5);
+  node.style.setProperty('--fit-scale', String(fitScale));
+  // --scale is unitless: target width divided by design width (960px)
+  node.style.setProperty('--scale', String(size.width / 960));
 
   try {
     const dataUrl = await toPng(node, {
@@ -58,6 +61,40 @@ export const ScheduleImageTemplate: React.FC<Props> = ({
   extractCategory,
   size,
 }) => {
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const headerRef = useRef<HTMLDivElement | null>(null);
+  const footerRef = useRef<HTMLDivElement | null>(null);
+  const eventsRef = useRef<HTMLDivElement | null>(null);
+  const [centerEvents, setCenterEvents] = useState<boolean>(false);
+
+  // Measure available vs required height and toggle centering when events fit.
+  useEffect(() => {
+    const wrapper = wrapperRef.current;
+    const header = headerRef.current;
+    const footer = footerRef.current;
+    const eventsEl = eventsRef.current;
+    if (!wrapper || !header || !footer || !eventsEl) return;
+
+    // Compute available vertical space inside the wrapper for events.
+    const wrapperHeight = wrapper.clientHeight; // includes padding
+    const headerHeight = header.offsetHeight;
+    const footerHeight = footer.offsetHeight;
+
+    const availableHeight = wrapperHeight - headerHeight - footerHeight;
+
+    // Required height is the natural scrollHeight of the events list (all items stacked).
+    const requiredHeight = eventsEl.scrollHeight;
+
+    const fits = requiredHeight <= availableHeight;
+    setCenterEvents(fits);
+
+    // If it doesn't fit, compute a small nudge so the list is moved upward a bit
+    // to avoid the last event being cut off visually. Clamp the nudge to 80px.
+    const overflow = Math.max(0, requiredHeight - availableHeight);
+    const nudge = Math.min(overflow, 80);
+    eventsEl.style.setProperty('--events-nudge', `${nudge}px`);
+  }, [events, eventCount, size.width, size.height]);
+
   return (
     <div style={{ position: 'absolute', left: '-9999px', top: 0 }}>
       {/* Canvas = target size, wrapper = base layout */}
@@ -67,27 +104,32 @@ export const ScheduleImageTemplate: React.FC<Props> = ({
         style={{
           '--target-width': `${size.width}px`,
           '--target-height': `${size.height}px`,
-          '--event-count': eventCount,        // ← pass to CSS
-          '--spacing-scale': `${Math.max(0.95 - (eventCount - 1) * 0.04)}`, // ← auto-scale
+          '--event-count': String(eventCount),        // ← pass to CSS
+          '--fit-scale': `${Math.max(0.95 - (eventCount - 1) * 0.06, 0.5)}`, // ← auto-scale (clamped)
+          '--scale': `${size.width / 960}`,
         } as React.CSSProperties}
       >
-        <div className="schedule-image-wrapper">
+        <div className="schedule-image-wrapper" ref={wrapperRef}>
           <div className="schedule-image-centering">
             {/* Header */}
-            <div className="schedule-image-header">
+            <div className="schedule-image-header" ref={headerRef}>
               {profileImageUrl && (
                 <img src={profileImageUrl} className="schedule-image-avatar" alt="avatar" />
               )}
-              <Typography variant="h2" className="schedule-image-title">
-                <strong>{twitchUsername ? `${twitchUsername}'s` : ''} Stream Schedule</strong>
-              </Typography>
-              <Typography variant="h3" className="schedule-image-subtitle">
-                <strong>{events[0].start.split(" ")[0]} - {events[events.length - 1].start.split(" ")[0]}</strong>
-              </Typography>
+              <div className="schedule-image-header-text">
+                <Typography variant="h3" className="schedule-image-title">
+                  <strong>{twitchUsername ? `${twitchUsername}'s` : ''} Stream Schedule</strong>
+                </Typography>
+                <Typography variant="h4" className="schedule-image-subtitle">
+                  <strong>{events[0].start.split(" ")[0]} - {events[events.length - 1].start.split(" ")[0]}</strong>
+                </Typography>
+              </div>
             </div>
 
             {/* Events */}
-            <div className="schedule-image-events">
+            <div
+              ref={eventsRef}
+              className={`schedule-image-events ${centerEvents ? 'center-events' : ''}`}>
               {events.map((ev, i) => (
                 <div key={i} className="event-container">
                   <div className="event">
@@ -115,7 +157,7 @@ export const ScheduleImageTemplate: React.FC<Props> = ({
             </div>
 
             {/* Footer */}
-            <div className="schedule-image-footer">
+            <div className="schedule-image-footer" ref={footerRef}>
               <Typography variant="caption">
                 Powered by Easy Stream Schedule Tool
               </Typography>

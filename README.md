@@ -9,11 +9,12 @@ Like the name implies, this tool is meant to simplify sharing your stream schedu
 
 ## How to use (quickstart)
 
-###Pre-Requisite: Schedule your upcoming streams from your [Twitch Dashboard](dashboard.twitch.tv)
+### Pre-Requisite: Schedule your upcoming streams from your [Twitch Dashboard](dashboard.twitch.tv)
 1. From the left side menu to go to Settings -> Channel
 2. Click Schedule in the top navigation on the Channel Settings page.
 3. Add your streams! Be sure to put a title, time, and category for best results. 
 
+### Using The Easy Schedule Tool
 1. Visit: [Easy Schedule Tool](https://chrono32123.github.io/schedule-formatter/) (using GitHub Pages to host)
 2. Input your twitch username or your twitch calendar URL
 3. Get your next week of streams in a list that you can export into a custom image OR copy a list of Discord formatted timestamps to share on your local server.

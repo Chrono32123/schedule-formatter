@@ -9,7 +9,7 @@ Like the name implies, this tool is meant to simplify sharing your stream schedu
 
 ## How to use (quickstart)
 
-### Pre-Requisite: Schedule your upcoming streams from your [Twitch Dashboard](dashboard.twitch.tv)
+### Pre-Requisite: Schedule your upcoming streams from your [Twitch Dashboard](https://dashboard.twitch.tv)
 1. From the left side menu to go to Settings -> Channel
 2. Click Schedule in the top navigation on the Channel Settings page.
 3. Add your streams! Be sure to put a title, time, and category for best results. 
@@ -31,8 +31,10 @@ Like the name implies, this tool is meant to simplify sharing your stream schedu
 
 ## Environment variables
 
-- VITE_TWITCH_CLIENT_ID — Twitch application client id (optional; needed for Twitch mode)
-- VITE_TWITCH_CLIENT_SECRET — Twitch application secret (optional; needed for Twitch mode)
+You will need to create a dev profile for the twitch api and then create an application to generate these.
+
+- VITE_TWITCH_CLIENT_ID — Twitch application client id
+- VITE_TWITCH_CLIENT_SECRET — Twitch application secret
 
 Place them in `.env.local` in the project root (example):
 

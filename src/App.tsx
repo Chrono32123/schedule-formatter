@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import moment, { max } from 'moment';
 import { Typography, Container, TextField, Select, Button, Box, MenuItem, Tabs, Tab, InputLabel, Switch, FormControlLabel, FormControl } from '@mui/material';
 import axios from 'axios';
@@ -363,7 +363,10 @@ const handleSubmit = async (e: React.FormEvent) => {
             id="twitchUsername"
             label="Your Twitch Username"
             value={twitchUsername}
-            onChange={(e) => setTwitchUsername(e.target.value)}
+            onChange={(e) => {
+              const sanitized = e.target.value.replace(/[^a-zA-Z0-9_ ]/g, '');
++              setTwitchUsername(sanitized.trim());
+            }}
             placeholder="e.g., shroud"
             className="form-input"
             fullWidth

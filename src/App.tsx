@@ -31,9 +31,10 @@ function TabPanel(props: TabPanelProps) {
       hidden={value !== index}
       id={`tabpanel-${index}`}
       aria-labelledby={`tab-${index}`}
+      className="tab-panel-wrapper"
       {...other}
     >
-      {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
+      {value === index && <>{children}</>}
     </div>
   );
 }
@@ -385,7 +386,7 @@ const handleSubmit = async (e: React.FormEvent) => {
             fullWidth
             />
         </Box>
-        <Typography variant="h5" className="form-input" sx={{ mb: 2, alignSelf: 'flex-start' }}>Options</Typography>
+        <Typography variant="h5" className="form-input options-heading">Options</Typography>
         <Box className="form-group">
           <FormControl>
             <InputLabel className="select-label" id="date-format-label">Date Format</InputLabel>
@@ -403,7 +404,7 @@ const handleSubmit = async (e: React.FormEvent) => {
           </Select>
           </FormControl>
         </Box>
-        <Box sx={{ display: 'flex', gap: '10px', justifyContent: 'center', width: '100%' }}>
+        <Box className="button-container">
           <Button
             type="submit"
             disabled={loading}
@@ -428,7 +429,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                 Upcoming Streams
               </Typography>
               {events.length === 0 && !error && !loading && (
-                <Typography sx={{ textAlign: 'center'}}>
+                <Typography className="centered-text">
                   No events found for the selected period.
                 </Typography>
               )}
@@ -436,11 +437,11 @@ const handleSubmit = async (e: React.FormEvent) => {
                 <Box key={index} className="event-container">
                   <div className="event">
                     <div className="event-details">
-                      <Typography variant="h6" sx={{fontSize: '32px'}}>
+                      <Typography variant="h6" className="event-title">
                         <strong>{event.summary}</strong>
                       </Typography>
-                      <Typography sx={{fontSize: '24px'}}><strong>Category:</strong> {extractCategory(event.description)}</Typography>
-                      <Typography sx={{fontSize: '24px'}}><strong>Start:</strong> {event.start}</Typography>
+                      <Typography className="event-info"><strong>Category:</strong> {extractCategory(event.description)}</Typography>
+                      <Typography className="event-info"><strong>Start:</strong> {event.start}</Typography>
                     </div>
                     {event.categoryImage && (
                       <img
@@ -481,11 +482,11 @@ const handleSubmit = async (e: React.FormEvent) => {
             </Typography>
             <Box className="compact-events">
               {events.length === 0 && !error && !loading && (
-                <Typography sx={{ textAlign: 'center' }}>
+                <Typography className="centered-text">
                   No events found for the selected period.
                 </Typography>
               )}
-              <Box sx={{display: 'inline', justifyContent: 'center', mb: 2}}>
+              <Box className="discord-controls-wrapper">
               <FormControl>
               <InputLabel className="select-label" id="discord-format-label">Discord Timestamp Format</InputLabel>
               <Select
@@ -502,13 +503,13 @@ const handleSubmit = async (e: React.FormEvent) => {
                     discordTimestamp: item.discordTimestamp.replace(/:[a-zA-Z]>$/, `:${e.target.value}>`)
                   })));
                 }}>
-                <MenuItem value="F">Long Date/Time ({timestampFormats.F})</MenuItem>
-                <MenuItem value="f">Short Date/Time ({timestampFormats.f})</MenuItem>
-                <MenuItem value="t">Short Time ({timestampFormats.t})</MenuItem>
-                <MenuItem value="T">Long Time ({timestampFormats.T})</MenuItem>
-                <MenuItem value="d">Short Date ({timestampFormats.d})</MenuItem>
-                <MenuItem value="D">Long Date ({timestampFormats.D})</MenuItem>
-                <MenuItem value="R">Relative ({timestampFormats.R})</MenuItem>
+                <MenuItem value="F">Long Date/Time (F)</MenuItem>
+                <MenuItem value="f">Short Date/Time (f)</MenuItem>
+                <MenuItem value="t">Short Time (t)</MenuItem>
+                <MenuItem value="T">Long Time (T)</MenuItem>
+                <MenuItem value="d">Short Date (d)</MenuItem>
+                <MenuItem value="D">Long Date (D)</MenuItem>
+                <MenuItem value="R">Relative (R)</MenuItem>
                 </Select>
                 </FormControl>
                 <FormControlLabel
@@ -516,14 +517,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                     <Switch
                     checked={previewMode}
                     onChange={(e) => setPreviewMode(e.target.checked)}
-                    sx={{
-                      '& .MuiSwitch-switchBase.Mui-checked': {
-                        color: '#9146FF',
-                      },
-                      '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
-                        backgroundColor: '#9146FF',
-                      },
-                    }}
+                    className="preview-switch"
                     />
                   }
                   label="Preview Toggle"

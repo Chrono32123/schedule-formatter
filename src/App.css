@@ -1,3 +1,13 @@
+/* Global overrides to prevent horizontal scroll */
+html,
+body,
+#root {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+
 /* Root container for the entire app */
 .container {
   min-height: 100vh;
@@ -5,8 +15,80 @@
   justify-content: space-between;
   flex-direction: column;
   align-items: center;
-  padding: 24px;
+  padding: 0 !important;
   box-sizing: border-box;
+  overflow-x: hidden;
+}
+
+/* TabPanel wrapper box */
+.tab-panel-wrapper {
+  padding: 8px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* OR separator */
+.or-separator {
+  margin-bottom: 16px;
+}
+
+/* Button container with flex */
+.button-container {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  width: 100%;
+}
+
+/* Discord format controls wrapper */
+.discord-controls-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 16px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* Typography with centered text */
+.centered-text {
+  text-align: center;
+}
+
+/* Typography with aligned left */
+.aligned-left {
+  align-self: flex-start;
+}
+
+/* Options heading */
+.options-heading {
+  margin-bottom: 16px;
+  align-self: flex-start;
+}
+
+/* Event typography styles */
+.event-title {
+  font-size: 32px;
+}
+
+.event-info {
+  font-size: 24px;
+}
+
+/* Switch wrapper for themed styles */
+.preview-switch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.preview-switch .MuiSwitch-switchBase.Mui-checked {
+  color: #9146FF !important;
+}
+
+.preview-switch .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track {
+  background-color: #9146FF !important;
 }
 
 .title {
@@ -24,9 +106,11 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  max-width: 700px;
+  max-width: 900px;
   width: 100%;
   margin: 0 auto;
+  padding: 16px;
+  box-sizing: border-box;
 }
 
 /* Form container */
@@ -37,6 +121,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  box-sizing: border-box;
 }
 
 .results-wrapper {
@@ -99,6 +184,20 @@
 .form-input .MuiMenuItem-root:hover {
   background-color: #9146FF; /* Purple background on hover */
   color: #ffffff; /* Keep text white on hover */
+}
+
+/* Discord controls specific styling */
+.discord-controls-wrapper .MuiFormControl-root {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.discord-controls-wrapper .MuiSelect-root,
+.discord-controls-wrapper .MuiOutlinedInput-root {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .tabs {
@@ -173,28 +272,31 @@
 /* Compact view */
 .compact-events {
   width: 100%;
-  max-width: 600px;
-  padding: 16px;
+  max-width: 100%;
+  padding: 8px;
   display: flex;
   flex-direction: column;
+  box-sizing: border-box;
 }
 
 .compact-event {
   width: 100%;
-  max-width: 600px;
+  max-width: 100%;
   padding: 2px;
   margin-bottom: 8px;
   background-color: #242424;
   color: #ffffff;
+  box-sizing: border-box;
 }
 
 /* Copy button container */
 .copy-button-container {
   width: 100%;
-  max-width: 600px;
+  max-width: 100%;
   display: flex;
   justify-content: center;
   margin-top: 16px;
+  box-sizing: border-box;
 }
 
 /* Export button container (inside the tab) */
@@ -219,18 +321,31 @@
   overflow-x: auto !important;
 }
 
+/* MUI Popper override for select menus and popovers */
+.MuiPopper-root {
+  max-width: 100vw !important;
+}
+
 /* Responsive adjustments */
 @media (max-width: 600px) {
   .container {
-    padding: 16px;
+    padding: 0 !important;
   }
 
   .page-wrapper {
-    padding: 0;
+    padding: 12px;
+    max-width: 100%;
+  }
+
+  .tab-panel-wrapper {
+    padding: 8px;
+    width: 100%;
   }
 
   .form-container {
     padding-bottom: 16px;
+    max-width: 100%;
+    width: 100%;
   }
 
   .event {
@@ -265,34 +380,107 @@
   .events, 
   .compact-events {
     padding: 8px;
+    max-width: 100%;
+    width: 100%;
   }
 
   .event-container {
     padding: 12px 8px;
   }
+
+  .button-container {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .discord-controls-wrapper {
+    gap: 12px;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  /* MUI-specific mobile overrides */
+  .MuiFormControl-root {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .MuiSelect-root,
+  .MuiOutlinedInput-root,
+  .MuiInputBase-root {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .MuiPopover-paper {
+    max-width: calc(100vw - 16px) !important;
+    margin-left: 8px !important;
+    left: 8px !important;
+    right: auto !important;
+    overflow-x: hidden !important;
+  }
+
+  .MuiMenu-paper {
+    max-width: calc(100vw - 16px) !important;
+    left: 8px !important;
+    right: auto !important;
+    overflow-x: hidden !important;
+  }
+
+  .MuiTabPanel-root {
+    padding: 8px !important;
+    width: 100% !important;
+    overflow-x: hidden !important;
+  }
+
+  body {
+    overflow-x: hidden !important;
+  }
+
+  /* Additional phone-specific fixes for dropdowns */
+  .MuiPopover-root,
+  .MuiMenu-root {
+    max-width: 100vw !important;
+  }
+
+  .MuiPaper-root {
+    max-width: calc(100vw - 16px) !important;
+  }
+
+  /* Ensure Select dropdown respects viewport */
+  [role="listbox"],
+  [role="menu"] {
+    max-width: calc(100vw - 16px) !important;
+    left: 8px !important;
+    right: auto !important;
+  }
+
+  /* Truncate dropdown menu items on mobile */
+  .MuiMenuItem-root {
+    max-width: calc(100vw - 32px) !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    display: block !important;
+  }
+
+  .MuiMenuItem-root span {
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    display: block !important;
+  }
+
+  /* Also truncate the select's displayed value */
+  .MuiSelect-select {
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
 }
 
-/* Tab adjustments for mobile */
-.MuiTabs-root {
-  min-height: 48px;
-}
-
-.MuiTabs-flexContainer {
-  flex-wrap: wrap;
-}
-
-.MuiTab-root {
-  min-width: auto !important;
-  padding: 12px 16px !important;
-  font-size: 14px !important;
-}
-
-/* Tab panel content */
-.MuiTabPanel-root {
-  padding: 16px 8px !important;
-}
-
-/* Tablet adjustments */
+/* Tablet adjustments - only apply to tablet sizes, not phones */
 @media (min-width: 601px) and (max-width: 960px) {
   .container {
     padding: 20px;

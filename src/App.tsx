@@ -503,13 +503,13 @@ const handleSubmit = async (e: React.FormEvent) => {
                     discordTimestamp: item.discordTimestamp.replace(/:[a-zA-Z]>$/, `:${e.target.value}>`)
                   })));
                 }}>
-                <MenuItem value="F">Long Date/Time (F)</MenuItem>
-                <MenuItem value="f">Short Date/Time (f)</MenuItem>
-                <MenuItem value="t">Short Time (t)</MenuItem>
-                <MenuItem value="T">Long Time (T)</MenuItem>
-                <MenuItem value="d">Short Date (d)</MenuItem>
-                <MenuItem value="D">Long Date (D)</MenuItem>
-                <MenuItem value="R">Relative (R)</MenuItem>
+                <MenuItem value="F"><span className="menu-label">Long Date/Time</span> <span className="menu-example">({timestampFormats.F})</span></MenuItem>
+                <MenuItem value="f"><span className="menu-label">Short Date/Time</span> <span className="menu-example">({timestampFormats.f})</span></MenuItem>
+                <MenuItem value="t"><span className="menu-label">Short Time</span> <span className="menu-example">({timestampFormats.t})</span></MenuItem>
+                <MenuItem value="T"><span className="menu-label">Long Time</span> <span className="menu-example">({timestampFormats.T})</span></MenuItem>
+                <MenuItem value="d"><span className="menu-label">Short Date</span> <span className="menu-example">({timestampFormats.d})</span></MenuItem>
+                <MenuItem value="D"><span className="menu-label">Long Date</span> <span className="menu-example">({timestampFormats.D})</span></MenuItem>
+                <MenuItem value="R"><span className="menu-label">Relative</span> <span className="menu-example">({timestampFormats.R})</span></MenuItem>
                 </Select>
                 </FormControl>
                 <FormControlLabel

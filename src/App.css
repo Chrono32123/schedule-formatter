@@ -63,8 +63,8 @@ body,
 
 /* Options heading */
 .options-heading {
-  margin-bottom: 16px;
-  align-self: flex-start;
+  padding-bottom: 24px;
+  align-self: center;
 }
 
 /* Event typography styles */

@@ -20,11 +20,11 @@ interface Props {
   size: ImageSize;
 }
 
-export const GenerateScheduleImage = async (props: Props): Promise<void> => {
+export const GenerateScheduleImage = async (props: Props): Promise<string | null> => {
   const { size } = props;
   const { eventCount } = props;
   const node = document.getElementById('schedule-image-canvas');
-  if (!node) return;
+  if (!node) return null;
   // Set CSS variables on the canvas node. Use px for width/height and
   // a unitless value for --scale (scale relative to the base 960px layout).
   node.style.setProperty('--target-width', `${size.width}px`);
@@ -43,12 +43,10 @@ export const GenerateScheduleImage = async (props: Props): Promise<void> => {
       height: size.height,
     });
 
-    const link = document.createElement('a');
-    link.download = `${props.twitchUsername || 'schedule'}_${size.width}x${size.height}.png`;
-    link.href = dataUrl;
-    link.click();
+    return dataUrl;
   } catch (err) {
     console.error('Image generation failed', err);
+    return null;
   }
 };
 

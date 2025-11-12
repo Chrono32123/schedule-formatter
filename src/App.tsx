@@ -5,6 +5,7 @@ import axios from 'axios';
 import './App.css';
 import Footer from './Footer';
 import { GenerateScheduleImage, ScheduleImageTemplate } from './components/ScheduleImage';
+import { ShareSheet } from './components/ShareSheet';
 
 
 export interface ParsedEvent {
@@ -56,6 +57,8 @@ function App() {
   const [timestampFormat, setTimestampFormat] = useState('F');
   const [previewMode, setPreviewMode] = useState(false);
   const [profileImageUrl, setProfileImageUrl] = useState<string>('');
+  const [shareSheetOpen, setShareSheetOpen] = useState(false);
+  const [scheduleImageDataUrl, setScheduleImageDataUrl] = useState<string>('');
 
 
   const imageSize = { width: 1080, height: 1350 };
@@ -142,10 +145,9 @@ function App() {
         }
         return {
           ...event,
-          start: startMoment.format(dateFormat), // Reformat with new dateFormat
+          start: startMoment.format(dateFormat),
         };
       })
-      // .sort((a, b) => moment(a.start, dateFormat).diff(moment(b.start, dateFormat))); // Re-sort events
     setEvents(updatedEvents);
   }
 }, [dateFormat]);
@@ -433,7 +435,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                   No events found for the selected period.
                 </Typography>
               )}
-              {events.map((event: ParsedEvent, index) => (
+              {eventsForImage.map((event: ParsedEvent, index) => (
                 <Box key={index} className="event-container">
                   <div className="event">
                     <div className="event-details">
@@ -459,8 +461,8 @@ const handleSubmit = async (e: React.FormEvent) => {
                 <Button
                   variant="contained"
                   className="button generate-image-btn"
-                  onClick={() =>
-                    GenerateScheduleImage({
+                  onClick={async () => {
+                    const imageUrl = await GenerateScheduleImage({
                       events,
                       eventCount,
                       twitchUsername,
@@ -468,10 +470,14 @@ const handleSubmit = async (e: React.FormEvent) => {
                       profileImageUrl,
                       extractCategory,
                       size: imageSize
-                    })
-                  }
+                    });
+                    if (imageUrl) {
+                      setScheduleImageDataUrl(imageUrl);
+                      setShareSheetOpen(true);
+                    }
+                  }}
                 >
-                  Download Schedule Image
+                  Share Schedule
                 </Button>
               </Box>
             </Box>
@@ -559,6 +565,13 @@ const handleSubmit = async (e: React.FormEvent) => {
       )}
       </Box>
       <Footer />
+      <ShareSheet
+        open={shareSheetOpen}
+        onClose={() => setShareSheetOpen(false)}
+        imageDataUrl={scheduleImageDataUrl}
+        filename={`${twitchUsername || 'schedule'}_${imageSize.width}x${imageSize.height}.png`}
+        title={`${twitchUsername}'s Stream Schedule`}
+      />
       </Container>
     );
 }

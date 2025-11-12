@@ -1,0 +1,229 @@
+/* Share Sheet Dialog Styling */
+.share-sheet-dialog .MuiDialog-paper {
+  background-color: #242424;
+  color: #ffffff;
+}
+
+.share-sheet-title {
+  background-color: #1a1a1a;
+  border-bottom: 1px solid #444;
+  padding: 16px;
+}
+
+.share-sheet-content {
+  padding: 24px;
+}
+
+/* Image Preview */
+.image-preview-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 24px;
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: #1a1a1a;
+  padding: 12px;
+}
+
+.image-preview {
+  max-width: 100%;
+  max-height: 400px;
+  width: auto;
+  height: auto;
+  border-radius: 4px;
+}
+
+/* Share Buttons Section */
+.share-buttons-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.share-section-title {
+  margin-top: 16px;
+  margin-bottom: 8px;
+  color: #9146FF;
+  font-weight: 600;
+}
+
+.share-section-title:first-child {
+  margin-top: 0;
+}
+
+/* Share Buttons Grid */
+.share-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.other-buttons {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px;
+}
+
+.share-button,
+.other-button {
+  color: #ffffff;
+  border-color: #9146FF;
+  padding: 10px 12px;
+  font-size: 0.875rem;
+  text-transform: none;
+  border-radius: 4px;
+}
+
+/* React-Share Buttons - Icon Only */
+.react-share-button {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 50px !important;
+  height: 50px !important;
+  border-radius: 50% !important;
+  border: none !important;
+  background-color: transparent !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  padding: 0 !important;
+  min-width: unset !important;
+  min-height: unset !important;
+}
+
+.react-share-button svg {
+  width: 24px !important;
+  height: 24px !important;
+}
+
+.react-share-button:hover {
+  transform: scale(1.1);
+}
+
+.react-share-button.twitter-button {
+  color: #ffffff;
+}
+
+.react-share-button.twitter-button:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.react-share-button.reddit-button {
+  color: #ff4500;
+}
+
+.react-share-button.reddit-button:hover {
+  background-color: rgba(255, 69, 0, 0.1);
+}
+
+.react-share-button.facebook-button {
+  color: #1877f2;
+}
+
+.react-share-button.facebook-button:hover {
+  background-color: rgba(24, 119, 242, 0.1);
+}
+
+.react-share-button svg {
+  width: 24px;
+  height: 24px;
+}
+
+/* Discord Icon Button */
+.discord-icon-button {
+  color: #5865f2 !important;
+  width: 50px !important;
+  height: 50px !important;
+  border-radius: 50% !important;
+  transition: all 0.2s ease !important;
+}
+
+.discord-icon-button:hover {
+  background-color: rgba(88, 101, 242, 0.1) !important;
+  transform: scale(1.1);
+}
+
+.share-button:hover,
+.other-button:hover {
+  background-color: rgba(145, 70, 255, 0.1);
+  border-color: #b366ff;
+}
+
+.twitter-button {
+  border-color: #1da1f2;
+}
+
+.twitter-button:hover {
+  background-color: rgba(29, 161, 242, 0.1);
+  border-color: #1da1f2;
+}
+
+.reddit-button {
+  border-color: #ff4500;
+}
+
+.reddit-button:hover {
+  background-color: rgba(255, 69, 0, 0.1);
+  border-color: #ff4500;
+}
+
+.discord-button {
+  border-color: #5865f2;
+}
+
+.discord-button:hover {
+  background-color: rgba(88, 101, 242, 0.1);
+  border-color: #5865f2;
+}
+
+.facebook-button {
+  border-color: #1877f2;
+}
+
+.facebook-button:hover {
+  background-color: rgba(24, 119, 242, 0.1);
+  border-color: #1877f2;
+}
+
+.instagram-button {
+  border-color: #e1306c;
+}
+
+.instagram-button:hover {
+  background-color: rgba(225, 48, 108, 0.1);
+  border-color: #e1306c;
+}
+
+/* Dialog Actions */
+.share-sheet-actions {
+  padding: 16px;
+  border-top: 1px solid #444;
+  background-color: #1a1a1a;
+}
+
+.share-sheet-actions .MuiButton-contained {
+  background-color: #9146FF;
+  color: #ffffff;
+}
+
+.share-sheet-actions .MuiButton-contained:hover {
+  background-color: #b366ff;
+}
+
+/* Mobile Responsive */
+@media (max-width: 600px) {
+  .share-buttons,
+  .other-buttons {
+    grid-template-columns: 1fr;
+  }
+
+  .image-preview {
+    max-height: 300px;
+  }
+
+  .share-sheet-content {
+    padding: 16px;
+  }
+}

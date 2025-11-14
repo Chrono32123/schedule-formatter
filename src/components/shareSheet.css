@@ -28,9 +28,17 @@
 .image-preview {
   max-width: 100%;
   max-height: 400px;
-  width: auto;
-  height: auto;
+  width: 100%;
+  height: 100%;
   border-radius: 4px;
+  object-fit: contain;
+}
+
+/* Mobile: Fit inside container */
+@media (max-width: 600px) {
+  .image-preview {
+    max-height: 300px;
+  }
 }
 
 /* Share Buttons Section */
@@ -220,7 +228,10 @@
   }
 
   .image-preview {
-    max-height: 300px;
+    /* Scale down the preview image instead of constraining dimensions
+       to preserve 1080×1350 aspect ratio */
+    max-height: none;
+    transform-origin: center top;
   }
 
   .share-sheet-content {

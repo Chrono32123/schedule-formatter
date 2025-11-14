@@ -6,17 +6,19 @@
   --target-height: 1350px;
   --event-count: 1;
   --fit-scale: 1;
-  width: var(--target-width);
-  height: var(--target-height);
+  width: var(--target-width) !important;
+  height: var(--target-height) !important;
   overflow: hidden;
-  transform-origin: top left;
-  /* --scale should be set by the inline style (unitless). Provide a fallback of 1. */
   transform: scale(var(--scale, 1));
+  transform-origin: top left;
 }
 
 .schedule-image-wrapper {
-  width: 960px;
-  height: 1350px;
+  /* CRITICAL: Fixed dimensions that should never change during rendering */
+  width: 960px !important;
+  height: 1350px !important;
+  min-width: 960px !important;
+  max-width: 960px !important;
   /* Header should remain visually consistent — use fixed padding so the header
     is positioned from the top consistently. Add extra bottom padding so
     the events region has breathing room and the last event isn't cut off.
@@ -102,8 +104,12 @@
   /* Fix event width so all events line up. Use a fixed width (not max-width)
      so that events with/without images occupy the same horizontal space. */
   width: 750px;
+  max-width: 750px;
+  min-width: 750px;
   border-bottom: 1px solid #555;
   align-self: center;
+  /* Prevent text wrapping due to screen size constraints */
+  overflow: visible;
 }
 .schedule-image-events .event {
   display: flex;
@@ -113,25 +119,30 @@
 .schedule-image-events .event-details {
   flex: 1;
   min-width: 0; /* allow flex children to shrink and wrap text correctly */
-  flex-basis: 0;
+  flex-basis: auto;
+  display: flex;
+  flex-direction: column;
+  gap: calc(5px * var(--fit-scale));
 }
 .schedule-image-events .event-title {
   font-size: calc(44px * var(--fit-scale));
   max-width: 100%;
   /* Ensure long titles wrap instead of expanding the container */
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
   word-break: break-word;
   white-space: normal;
   margin: 0 0 calc(10px * var(--fit-scale));
   line-height: 1.2;
+  width: 100%;
 }
 .schedule-image-events .event-category,
 .schedule-image-events .event-start {
   font-size: calc(32px * var(--fit-scale));
   margin: calc(5px * var(--fit-scale)) 0;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
   word-break: break-word;
   line-height: 1.3;
+  width: 100%;
 }
 .schedule-image-events .event-image {
   width: calc(130px * var(--fit-scale));

@@ -1,7 +1,7 @@
 // src/components/ScheduleImage.tsx
 import React, { useEffect, useRef, useState } from 'react';
-import { toPng } from 'html-to-image';
 import { ParsedEvent } from '../App';
+import { renderScheduleToCanvas } from '../utils/canvasRenderer';
 import { Typography } from '@mui/material';
 import './scheduleImage.css';
 
@@ -21,27 +21,27 @@ interface Props {
 }
 
 export const GenerateScheduleImage = async (props: Props): Promise<string | null> => {
-  const { size } = props;
-  const { eventCount } = props;
-  const node = document.getElementById('schedule-image-canvas');
-  if (!node) return null;
-  // Set CSS variables on the canvas node. Use px for width/height and
-  // a unitless value for --scale (scale relative to the base 960px layout).
-  node.style.setProperty('--target-width', `${size.width}px`);
-  node.style.setProperty('--target-height', `${size.height}px`);
-  node.style.setProperty('--event-count', String(eventCount));
-  const fitScale = Math.max(0.95 - (eventCount - 1) * 0.06, 0.5);
-  node.style.setProperty('--fit-scale', String(fitScale));
-  // --scale is unitless: target width divided by design width (960px)
-  node.style.setProperty('--scale', String(size.width / 960));
+  const { size, events, eventCount, twitchUsername, profileImageUrl, extractCategory } = props;
 
   try {
-    const dataUrl = await toPng(node, {
-      quality: 1,
-      pixelRatio: 1,
-      width: size.width,
-      height: size.height,
-    });
+    // Use Canvas-based rendering instead of html-to-image
+    // This ensures:
+    // 1. Always renders at exact 1080×1350px resolution
+    // 2. No viewport-dependent CSS affecting output
+    // 3. Consistent output across all devices (mobile, tablet, desktop)
+    // 4. Faster rendering with no DOM conversion overhead
+    const dataUrl = await renderScheduleToCanvas(
+      {
+        width: size.width,
+        height: size.height,
+        eventCount: eventCount,
+      },
+      events,
+      twitchUsername,
+      profileImageUrl,
+      'Created with Stream Schedule Formatter',
+      extractCategory
+    );
 
     return dataUrl;
   } catch (err) {
@@ -94,7 +94,7 @@ export const ScheduleImageTemplate: React.FC<Props> = ({
   }, [events, eventCount, size.width, size.height]);
 
   return (
-    <div style={{ position: 'absolute', left: '-9999px', top: 0 }}>
+    <div style={{ position: 'absolute', left: '-9999px', top: 0, width: `${size.width}px`, height: `${size.height}px` }}>
       {/* Canvas = target size, wrapper = base layout */}
       <div
         id="schedule-image-canvas"
@@ -102,8 +102,8 @@ export const ScheduleImageTemplate: React.FC<Props> = ({
         style={{
           '--target-width': `${size.width}px`,
           '--target-height': `${size.height}px`,
-          '--event-count': String(eventCount),        // ← pass to CSS
-          '--fit-scale': `${Math.max(0.95 - (eventCount - 1) * 0.06, 0.5)}`, // ← auto-scale (clamped)
+          '--event-count': String(eventCount),
+          '--fit-scale': `${Math.max(0.95 - (eventCount - 1) * 0.06, 0.5)}`,
           '--scale': `${size.width / 960}`,
         } as React.CSSProperties}
       >

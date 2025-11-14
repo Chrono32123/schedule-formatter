@@ -8,6 +8,9 @@ const Footer = () => {
         © {new Date().getFullYear()} Stream Schedule Tool -PREVIEW by Chrono.
         Built with help from {' '}
         <Link href="https://grok.com" target="_blank" rel="noopener" color="#9146FF"> Grok</Link>
+        and {' '}
+        <Link href="https://claude.ai" target="_blank" rel="noopener" color="#0081FF"> Claude</Link>
+        . 
       </Typography>
     </Box>
   );

@@ -1,4 +1,6 @@
-# Easy Stream Schedule Tool
+# Stream Share
+
+Create beautiful, shareable stream schedule images in seconds – no design tools needed.
 Like the name implies, this tool is meant to simplify sharing your stream schedule across social media platforms and your discord server by using your existing Twitch schedule! 
 
 

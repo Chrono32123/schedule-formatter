@@ -358,7 +358,7 @@ const handleSubmit = async (e: React.FormEvent) => {
     <Container maxWidth="md" className="container">
       <Box className="page-wrapper">
       <Typography variant="h4" className="title">
-        Easy Stream Schedule Tool
+        Stream Share
       </Typography>
       <Box component="form" onSubmit={handleSubmit} className="form-container">
         <Box className="form-group">

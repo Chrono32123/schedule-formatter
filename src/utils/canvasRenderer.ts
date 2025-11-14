@@ -38,7 +38,7 @@ const COLORS = {
 const TYPOGRAPHY = {
   baseSize: 16,
   titleSize: 56,
-  subtitleSize: 32,
+  subtitleSize: 42,
   eventTitleSize: 44,
   eventMetaSize: 32,
   footerSize: 12,

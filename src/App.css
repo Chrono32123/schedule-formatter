@@ -91,8 +91,23 @@ body,
   background-color: #9146FF !important;
 }
 
-.title {
+.header-with-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
   padding-bottom: 15px;
+  width: 100%;
+}
+
+.logo {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+}
+
+.title {
+  padding-bottom: 0;
   align-self: center;
   text-align: center;
 }

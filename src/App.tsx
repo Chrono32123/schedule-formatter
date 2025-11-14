@@ -6,6 +6,7 @@ import './App.css';
 import Footer from './Footer';
 import { GenerateScheduleImage, ScheduleImageTemplate } from './components/ScheduleImage';
 import { ShareSheet } from './components/ShareSheet';
+import logoSvg from './assets/stream_share_logo.svg';
 
 
 export interface ParsedEvent {
@@ -357,9 +358,12 @@ const handleSubmit = async (e: React.FormEvent) => {
   return (
     <Container maxWidth="md" className="container">
       <Box className="page-wrapper">
-      <Typography variant="h4" className="title">
-        Stream Share
-      </Typography>
+      <Box className="header-with-logo">
+        <img src={logoSvg} alt="Stream Share" className="logo" />
+        <Typography variant="h4" className="title">
+          Stream Share
+        </Typography>
+      </Box>
       <Box component="form" onSubmit={handleSubmit} className="form-container">
         <Box className="form-group">
           <TextField

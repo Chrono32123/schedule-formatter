@@ -300,12 +300,19 @@ export async function renderScheduleToCanvas(
     ctx.font = `bold ${subtitleSize}px 'Roboto', sans-serif`;
     ctx.fillStyle = COLORS.subtle;
 
-    const startDate = events[0].start.split(' ')[0];
-    const lastEventWithStart = events.findLast((e) => e.start) || events[0];
-    const endDate = lastEventWithStart.start.split(' ')[0];
-    const subtitleText = `${startDate} - ${endDate}`;
-
-    ctx.fillText(subtitleText, headerCenterX, headerTopMargin + scaleDimension(LAYOUT.avatarSize, 1) + 16 + titleSize + 8);
+    // Only show date range if there's more than one event
+    if (events.length > 1) {
+      // Extract date part (everything before " [at]" or " at ")
+      const startDateFull = events[0].start;
+      const startDate = startDateFull.split(' [at] ')[0] || startDateFull.split(' at ')[0];
+      
+      const lastEventWithStart = events.findLast((e) => e.start) || events[0];
+      const endDateFull = lastEventWithStart.start;
+      const endDate = endDateFull.split(' [at] ')[0] || endDateFull.split(' at ')[0];
+      
+      const subtitleText = `${startDate} - ${endDate}`;
+      ctx.fillText(subtitleText, headerCenterX, headerTopMargin + scaleDimension(LAYOUT.avatarSize, 1) + 16 + titleSize + 8);
+    }
   }
 
   ctx.textAlign = 'left'; // Reset alignment for events

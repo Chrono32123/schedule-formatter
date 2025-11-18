@@ -1,0 +1,773 @@
+import React, { useState } from 'react';
+import moment from 'moment';
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  TextField,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Box,
+  IconButton,
+  Paper,
+  Typography,
+  Autocomplete,
+} from '@mui/material';
+import DeleteIcon from '@mui/icons-material/Delete';
+import { ParsedEvent } from '../App';
+
+interface CreateEventFormData {
+  title: string;
+  startDateTime: string;
+  endDateTime: string;
+  category: string;
+}
+
+interface FormErrors {
+  title?: string;
+  startDateTime?: string;
+  endDateTime?: string;
+  category?: string;
+  general?: string;
+}
+
+interface CreateScheduleDialogProps {
+  open: boolean;
+  onClose: () => void;
+  onSave: (events: ParsedEvent[], channelName?: string, profilePictureUrl?: string | null) => void;
+  searchCategories: (query: string) => Promise<Array<{ id: string; name: string }>>;
+  fetchCategoryImages: (events: ParsedEvent[]) => Promise<ParsedEvent[]>;
+  initialEvents?: ParsedEvent[];
+  initialChannelName?: string;
+  initialProfilePictureUrl?: string | null;
+}
+
+export const CreateScheduleDialog: React.FC<CreateScheduleDialogProps> = ({
+  open,
+  onClose,
+  onSave,
+  searchCategories,
+  fetchCategoryImages,
+  initialEvents,
+  initialChannelName,
+  initialProfilePictureUrl,
+}) => {
+  const [formData, setFormData] = useState<CreateEventFormData>({
+    title: '',
+    startDateTime: '',
+    endDateTime: '',
+    category: '',
+  });
+
+  const [channelName, setChannelName] = useState('');
+  const [profilePictureUrl, setProfilePictureUrl] = useState<string | null>(null);
+  const [events, setEvents] = useState<ParsedEvent[]>([]);
+  const [errors, setErrors] = useState<FormErrors>({});
+  const [categoryOptions, setCategoryOptions] = useState<Array<{ id: string; name: string }>>([]);
+  const [categoryLoading, setCategoryLoading] = useState(false);
+  const [editingEventIndex, setEditingEventIndex] = useState<number | null>(null);
+
+  // Initialize state when dialog opens with existing events
+  React.useEffect(() => {
+    if (open) {
+      if (initialEvents && initialEvents.length > 0) {
+        setEvents(initialEvents);
+        setChannelName(initialChannelName || '');
+        setProfilePictureUrl(initialProfilePictureUrl || null);
+      } else {
+        setEvents([]);
+        setChannelName('');
+        setProfilePictureUrl(null);
+      }
+      setFormData({
+        title: '',
+        startDateTime: '',
+        endDateTime: '',
+        category: '',
+      });
+      setEditingEventIndex(null);
+      setErrors({});
+    }
+  }, [open, initialEvents, initialChannelName, initialProfilePictureUrl]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+    // Clear error for this field when user starts typing
+    if (errors[name as keyof FormErrors]) {
+      setErrors((prev) => ({
+        ...prev,
+        [name]: undefined,
+      }));
+    }
+  };
+
+  const handleProfilePictureUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setProfilePictureUrl(event.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleCategorySearch = async (query: string) => {
+    if (!query.trim()) {
+      setCategoryOptions([]);
+      return;
+    }
+    setCategoryLoading(true);
+    try {
+      const results = await searchCategories(query);
+      setCategoryOptions(results);
+    } catch (err) {
+      console.error('Failed to search categories:', err);
+      setCategoryOptions([]);
+    } finally {
+      setCategoryLoading(false);
+    }
+  };
+
+  const validateForm = (): boolean => {
+    const newErrors: FormErrors = {};
+
+    if (!formData.title.trim()) {
+      newErrors.title = 'Event title is required';
+    }
+    if (!formData.startDateTime) {
+      newErrors.startDateTime = 'Start date/time is required';
+    }
+    if (!formData.endDateTime) {
+      newErrors.endDateTime = 'End date/time is required';
+    }
+    if (!formData.category.trim()) {
+      newErrors.category = 'Category is required';
+    }
+
+    if (formData.startDateTime && formData.endDateTime) {
+      const startMoment = new Date(formData.startDateTime);
+      const endMoment = new Date(formData.endDateTime);
+      if (startMoment >= endMoment) {
+        newErrors.endDateTime = 'End time must be after start time';
+      }
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleAddEvent = () => {
+    if (!validateForm()) {
+      return;
+    }
+
+    const startMoment = moment(formData.startDateTime);
+    const endMoment = moment(formData.endDateTime);
+    const dateFormat = 'MMM D, YYYY [at] h:mm A';
+
+    const newEvent: ParsedEvent = {
+      summary: formData.title,
+      start: startMoment.format(dateFormat),
+      end: endMoment.format(dateFormat),
+      duration: calculateDuration(startMoment.toDate(), endMoment.toDate()),
+      discordTimestamp: `<t:${startMoment.unix()}:F>`,
+      description: formData.category + '\u200b',
+      categoryImage: null,
+      unixTimestamp: startMoment.unix(),
+      endUnixTimestamp: endMoment.unix(),
+    };
+
+    if (editingEventIndex !== null) {
+      // Update existing event
+      setEvents((prev) => {
+        const updated = [...prev];
+        updated[editingEventIndex] = newEvent;
+        return updated;
+      });
+      setEditingEventIndex(null);
+    } else {
+      // Add new event
+      setEvents((prev) => [...prev, newEvent]);
+    }
+    
+    setFormData({
+      title: '',
+      startDateTime: '',
+      endDateTime: '',
+      category: '',
+    });
+    setErrors({});
+  };
+
+  const handleEditEvent = (index: number) => {
+    const event = events[index];
+    if (event) {
+      // Convert the formatted date back to datetime-local format
+      // Format is "MMM D, YYYY [at] h:mm A", need to convert to ISO-like format for datetime-local
+      const dateStr = event.start;
+      const dateObj = moment(dateStr, 'MMM D, YYYY [at] h:mm A');
+      const endObj = moment(event.end, 'MMM D, YYYY [at] h:mm A');
+      
+      setFormData({
+        title: event.summary,
+        startDateTime: dateObj.format('YYYY-MM-DDTHH:mm'),
+        endDateTime: endObj.format('YYYY-MM-DDTHH:mm'),
+        category: event.description.slice(0, -1), // Remove the zero-width space
+      });
+      setEditingEventIndex(index);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingEventIndex(null);
+    setFormData({
+      title: '',
+      startDateTime: '',
+      endDateTime: '',
+      category: '',
+    });
+    setErrors({});
+  };
+
+  const handleDeleteEvent = (index: number) => {
+    setEvents((prev) => prev.filter((_, i) => i !== index));
+    if (editingEventIndex === index) {
+      handleCancelEdit();
+    }
+  };
+
+  const handleSave = async () => {
+    if (events.length === 0) {
+      setErrors({ general: 'Please add at least one event' });
+      return;
+    }
+    
+    const enrichedEvents = await fetchCategoryImages(events);
+    onSave(enrichedEvents, channelName || undefined, profilePictureUrl);
+    setEvents([]);
+    setFormData({
+      title: '',
+      startDateTime: '',
+      endDateTime: '',
+      category: '',
+    });
+    setChannelName('');
+    setProfilePictureUrl(null);
+    setErrors({});
+    onClose();
+  };
+
+  const handleClose = () => {
+    // Only reset form fields, not events (they're managed by parent via initialEvents)
+    setFormData({
+      title: '',
+      startDateTime: '',
+      endDateTime: '',
+      category: '',
+    });
+    setEditingEventIndex(null);
+    setErrors({});
+    onClose();
+  };
+
+  return (
+    <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
+      <DialogTitle sx={{ backgroundColor: '#1a1a1a', color: '#ffffff', pb: 2, textAlign: 'center' }}>
+        Create Your Own Schedule
+      </DialogTitle>
+      <DialogContent sx={{ backgroundColor: '#1a1a1a', pt: 2, pb: 2 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+          {/* General Error Message */}
+          {errors.general && (
+            <Typography sx={{ color: '#ff6b6b', fontSize: '0.875rem' }}>
+              {errors.general}
+            </Typography>
+          )}
+
+          {/* Channel Name and Profile Picture - Optional Section */}
+          <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start' }}>
+            <TextField
+              label="Channel/User Name (Optional)"
+              value={channelName}
+              onChange={(e) => setChannelName(e.target.value)}
+              fullWidth
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  backgroundColor: '#242424',
+                  '& fieldset': {
+                    borderColor: '#646cff',
+                  },
+                  '&:hover fieldset': {
+                    borderColor: '#9146FF',
+                  },
+                },
+                '& .MuiInputLabel-root': {
+                  color: '#ffffff',
+                  overflow: 'visible',
+                  '&.MuiInputLabel-shrink': {
+                    transform: 'translate(14px, -3px) scale(0.75)',
+                  },
+                },
+                '& .MuiOutlinedInput-input': {
+                  color: '#ffffff',
+                },
+              }}
+            />
+
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleProfilePictureUpload}
+                style={{ display: 'none' }}
+                id="profile-picture-input"
+              />
+              <Box
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const file = e.dataTransfer.files?.[0];
+                  if (file && file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                      setProfilePictureUrl(event.target?.result as string);
+                    };
+                    reader.readAsDataURL(file);
+                  }
+                }}
+                sx={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 1,
+                  p: 1,
+                  border: '2px dashed #9146FF',
+                  borderRadius: '8px',
+                  backgroundColor: '#1a1a1a',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  '&:hover': {
+                    borderColor: '#646cff',
+                    backgroundColor: '#242424',
+                  },
+                }}
+                component="label"
+                htmlFor="profile-picture-input"
+              >
+                {profilePictureUrl ? (
+                  <Box sx={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}>
+                    <Box sx={{ position: 'relative' }}>
+                      <Box
+                        component="img"
+                        src={profilePictureUrl}
+                        alt="Profile"
+                        sx={{
+                          width: 80,
+                          height: 80,
+                          borderRadius: '50%',
+                          border: '3px solid #9146FF',
+                          objectFit: 'cover',
+                        }}
+                      />
+                      <IconButton
+                        size="small"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setProfilePictureUrl(null);
+                        }}
+                        sx={{
+                          position: 'absolute',
+                          top: -8,
+                          right: -8,
+                          backgroundColor: '#ff6b6b',
+                          color: '#ffffff',
+                          width: 24,
+                          height: 24,
+                          padding: 0,
+                          '&:hover': {
+                            backgroundColor: '#ff5252',
+                          },
+                        }}
+                        title="Remove picture"
+                      >
+                        ✕
+                      </IconButton>
+                    </Box>
+                    <Typography sx={{ color: '#ffffff', fontSize: '0.75rem', textAlign: 'center' }}>
+                      Click or drag to change
+                    </Typography>
+                  </Box>
+                ) : (
+                  <>
+                    <Typography sx={{ color: '#9146FF', fontWeight: 'bold' }}>
+                      📸
+                    </Typography>
+                    <Typography sx={{ color: '#ffffff', fontSize: '0.875rem', textAlign: 'center' }}>
+                      Drag profile picture here or click to browse
+                    </Typography>
+                  </>
+                )}
+              </Box>
+            </Box>
+          </Box>
+
+          {/* Input Form - Event Title */}
+          <TextField
+            label="Event Title"
+            name="title"
+            value={formData.title}
+            onChange={handleInputChange}
+            fullWidth
+            error={!!errors.title}
+            helperText={errors.title}
+            className="form-input"
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                backgroundColor: '#242424',
+                '& fieldset': {
+                  borderColor: '#646cff',
+                },
+                '&:hover fieldset': {
+                  borderColor: '#9146FF',
+                },
+              },
+              '& .MuiInputLabel-root': {
+                color: '#ffffff',
+              },
+              '& .MuiOutlinedInput-input': {
+                color: '#ffffff',
+              },
+              '& .MuiFormHelperText-root': {
+                color: '#ff6b6b',
+              },
+            }}
+          />
+
+          <Autocomplete
+            freeSolo
+            options={categoryOptions}
+            getOptionLabel={(option) =>
+              typeof option === 'string' ? option : option.name
+            }
+            loading={categoryLoading}
+            onInputChange={(_, value) => {
+              setFormData((prev) => ({
+                ...prev,
+                category: value || '',
+              }));
+              if (errors.category) {
+                setErrors((prev) => ({
+                  ...prev,
+                  category: undefined,
+                }));
+              }
+              handleCategorySearch(value || '');
+            }}
+            onChange={(_, value) => {
+              if (value && typeof value === 'object' && 'name' in value) {
+                setFormData((prev) => ({
+                  ...prev,
+                  category: value.name,
+                }));
+              }
+            }}
+            inputValue={formData.category}
+            noOptionsText={categoryLoading ? 'Searching...' : 'Type to search categories'}
+            fullWidth
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Category"
+                error={!!errors.category}
+                helperText={errors.category}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    backgroundColor: '#242424',
+                    '& fieldset': {
+                      borderColor: '#646cff',
+                    },
+                    '&:hover fieldset': {
+                      borderColor: '#9146FF',
+                    },
+                  },
+                  '& .MuiInputLabel-root': {
+                    color: '#ffffff',
+                  },
+                  '& .MuiOutlinedInput-input': {
+                    color: '#ffffff',
+                  },
+                  '& .MuiFormHelperText-root': {
+                    color: '#ff6b6b',
+                  },
+                  '& .MuiAutocomplete-listbox': {
+                    backgroundColor: '#242424',
+                    color: '#ffffff',
+                  },
+                }}
+              />
+            )}
+            sx={{
+              '& .MuiAutocomplete-paper': {
+                backgroundColor: '#242424',
+              },
+              '& .MuiAutocomplete-option': {
+                backgroundColor: '#242424 !important',
+                color: '#ffffff !important',
+                '&[aria-selected="true"]': {
+                  backgroundColor: '#9146FF !important',
+                },
+                '&:hover': {
+                  backgroundColor: '#9146FF !important',
+                },
+              },
+            }}
+          />
+
+          {/* Date/Time Inputs - Side by Side on desktop, stacked on mobile */}
+          <Box sx={{ display: 'flex', gap: 1.5, justifyContent: 'center', px: 1, flexDirection: { xs: 'column', sm: 'row' } }}>
+            <TextField
+              label="Start Date/Time"
+              name="startDateTime"
+              type="datetime-local"
+              value={formData.startDateTime}
+              onChange={handleInputChange}
+              InputLabelProps={{ shrink: true }}
+              sx={{
+                flex: 1,
+                '& .MuiOutlinedInput-root': {
+                  backgroundColor: '#242424',
+                  '& fieldset': {
+                    borderColor: '#646cff',
+                  },
+                  '&:hover fieldset': {
+                    borderColor: '#9146FF',
+                  },
+                },
+                '& .MuiInputLabel-root': {
+                  color: '#ffffff',
+                },
+                '& .MuiOutlinedInput-input': {
+                  color: '#ffffff',
+                },
+                '& .MuiFormHelperText-root': {
+                  color: '#ff6b6b',
+                },
+              }}
+              error={!!errors.startDateTime}
+              helperText={errors.startDateTime}
+            />
+
+            <TextField
+              label="End Date/Time"
+              name="endDateTime"
+              type="datetime-local"
+              value={formData.endDateTime}
+              onChange={handleInputChange}
+              InputLabelProps={{ shrink: true }}
+              sx={{
+                flex: 1,
+                '& .MuiOutlinedInput-root': {
+                  backgroundColor: '#242424',
+                  '& fieldset': {
+                    borderColor: '#646cff',
+                  },
+                  '&:hover fieldset': {
+                    borderColor: '#9146FF',
+                  },
+                },
+                '& .MuiInputLabel-root': {
+                  color: '#ffffff',
+                },
+                '& .MuiOutlinedInput-input': {
+                  color: '#ffffff',
+                },
+                '& .MuiFormHelperText-root': {
+                  color: '#ff6b6b',
+                },
+              }}
+              error={!!errors.endDateTime}
+              helperText={errors.endDateTime}
+            />
+          </Box>
+
+          <Box sx={{ display: 'flex', gap: 1, alignSelf: 'flex-start', mt: 0.5 }}>
+            <Button
+              variant="contained"
+              onClick={handleAddEvent}
+              sx={{
+                backgroundColor: '#9146FF',
+                color: '#ffffff',
+                padding: '10px 20px',
+                borderRadius: '8px',
+                '&:hover': {
+                  backgroundColor: '#7a3bb8',
+                },
+              }}
+            >
+              {editingEventIndex !== null ? 'Update Event' : 'Add Event'}
+            </Button>
+            {editingEventIndex !== null && (
+              <Button
+                variant="outlined"
+                onClick={handleCancelEdit}
+                sx={{
+                  borderColor: '#9146FF',
+                  color: '#9146FF',
+                  padding: '10px 20px',
+                  borderRadius: '8px',
+                  '&:hover': {
+                    borderColor: '#7a3bb8',
+                    color: '#7a3bb8',
+                  },
+                }}
+              >
+                Cancel
+              </Button>
+            )}
+          </Box>
+
+          {/* Events Table */}
+          {events.length > 0 && (
+            <TableContainer
+              component={Paper}
+              sx={{
+                backgroundColor: '#242424',
+                mt: 1.5,
+              }}
+            >
+              <Table size="small">
+                <TableHead>
+                  <TableRow sx={{ backgroundColor: '#1a1a1a' }}>
+                    <TableCell sx={{ color: '#ffffff', fontWeight: 'bold', p: 0.75, fontSize: '0.85rem' }}>
+                      Title
+                    </TableCell>
+                    <TableCell sx={{ color: '#ffffff', fontWeight: 'bold', p: 0.75, fontSize: '0.85rem' }}>
+                      Start
+                    </TableCell>
+                    <TableCell sx={{ color: '#ffffff', fontWeight: 'bold', p: 0.75, fontSize: '0.85rem' }}>
+                      End
+                    </TableCell>
+                    <TableCell sx={{ color: '#ffffff', fontWeight: 'bold', p: 0.75, fontSize: '0.85rem' }}>
+                      Category
+                    </TableCell>
+                    <TableCell sx={{ color: '#ffffff', fontWeight: 'bold', p: 0.75, fontSize: '0.85rem' }}>
+                      Duration
+                    </TableCell>
+                    <TableCell align="center" sx={{ color: '#ffffff', fontWeight: 'bold', p: 0.5, fontSize: '0.85rem' }}>
+                      Action
+                    </TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {events.map((event, index) => {
+                    // Abbreviate dates: "Nov 18, 2025 at 3:00 PM" -> "11/18 3:00P"
+                    const abbreviateDate = (dateStr: string | null | undefined) => {
+                      if (!dateStr) return '-';
+                      const date = moment(dateStr, 'MMM D, YYYY [at] h:mm A');
+                      return date.format('M/D h:mmA').toLowerCase();
+                    };
+                    return (
+                    <TableRow key={index} sx={{ '&:hover': { backgroundColor: '#2a2a2a' }, height: '40px' }}>
+                      <TableCell sx={{ color: '#ffffff', p: 0.75, fontSize: '0.85rem', maxWidth: '80px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{event.summary}</TableCell>
+                      <TableCell sx={{ color: '#ffffff', p: 0.75, fontSize: '0.85rem', minWidth: '80px' }}>{abbreviateDate(event.start)}</TableCell>
+                      <TableCell sx={{ color: '#ffffff', p: 0.75, fontSize: '0.85rem', minWidth: '80px' }}>{abbreviateDate(event.end)}</TableCell>
+                      <TableCell sx={{ color: '#ffffff', p: 0.75, fontSize: '0.85rem', maxWidth: '70px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{event.description}</TableCell>
+                      <TableCell sx={{ color: '#ffffff', p: 0.75, fontSize: '0.85rem', minWidth: '60px' }}>{event.duration}</TableCell>
+                      <TableCell align="center" sx={{ p: 0.5 }}>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleEditEvent(index)}
+                          sx={{
+                            color: '#9146FF',
+                            '&:hover': {
+                              backgroundColor: 'rgba(145, 70, 255, 0.1)',
+                            },
+                            mr: 0.25,
+                            padding: '4px',
+                          }}
+                          title="Edit event"
+                        >
+                          ✏️
+                        </IconButton>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleDeleteEvent(index)}
+                          sx={{
+                            color: '#ff6b6b',
+                            '&:hover': {
+                              backgroundColor: 'rgba(255, 107, 107, 0.1)',
+                            },
+                            padding: '4px',
+                          }}
+                          title="Delete event"
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </TableCell>
+                    </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+        </Box>
+      </DialogContent>
+      <DialogActions sx={{ backgroundColor: '#1a1a1a', p: 2, gap: 1 }}>
+        <Button
+          onClick={handleClose}
+          sx={{
+            color: '#ffffff',
+            borderColor: '#646cff',
+            border: '1px solid',
+            '&:hover': {
+              backgroundColor: 'rgba(100, 108, 255, 0.1)',
+            },
+          }}
+        >
+          Cancel
+        </Button>
+        <Button
+          onClick={handleSave}
+          variant="contained"
+          disabled={events.length === 0}
+          sx={{
+            backgroundColor: '#9146FF',
+            color: '#ffffff',
+            '&:hover': {
+              backgroundColor: '#7a3bb8',
+            },
+            '&:disabled': {
+              backgroundColor: '#505050',
+              color: '#888888',
+            },
+          }}
+        >
+          Create Schedule
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+};
+
+function calculateDuration(start: Date, end: Date): string {
+  const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+  const roundedHours = Math.round(hours * 10) / 10;
+  return `${roundedHours} hour${roundedHours !== 1 ? 's' : ''}`;
+}

@@ -6,6 +6,7 @@ import './App.css';
 import Footer from './Footer';
 import { GenerateScheduleImage, ScheduleImageTemplate } from './components/ScheduleImage';
 import { ShareSheet } from './components/ShareSheet';
+import { CreateScheduleDialog } from './components/CreateScheduleDialog';
 import logoSvg from './assets/stream_share_logo.svg';
 import { formatStartEndDates } from './utils/dateFormatting';
 
@@ -63,9 +64,11 @@ function App() {
   const [previewMode, setPreviewMode] = useState(false);
   const [profileImageUrl, setProfileImageUrl] = useState<string>('');
   const [shareSheetOpen, setShareSheetOpen] = useState(false);
+  const [createScheduleDialogOpen, setCreateScheduleDialogOpen] = useState(false);
   const [scheduleImageDataUrl, setScheduleImageDataUrl] = useState<string>('');
   const [showEndDate, setShowEndDate] = useState(false);
   const [showDuration, setShowDuration] = useState(false);
+  const [isCustomSchedule, setIsCustomSchedule] = useState(false);
 
 
   const imageSize = { width: 1080, height: 1350 };
@@ -149,6 +152,84 @@ function App() {
       const error = err as { response?: { data?: unknown } } | Error;
       console.error('Token fetch failed:', 'response' in error ? error.response?.data : (error instanceof Error ? error.message : 'Unknown error'));
     }
+  };
+
+  const searchTwitchCategories = async (query: string): Promise<Array<{ id: string; name: string }>> => {
+    try {
+      if (!accessToken || !clientId || !query.trim()) {
+        return [];
+      }
+
+      const response = await axios.get('https://api.twitch.tv/helix/search/categories', {
+        headers: {
+          'Client-ID': clientId,
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        params: {
+          query: query,
+          first: 10,
+        },
+      });
+
+      return response.data.data.map((game: { id: string; name: string }) => ({
+        id: game.id,
+        name: game.name,
+      }));
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      console.error('Category search failed:', error.message);
+      return [];
+    }
+  };
+
+  const fetchCategoryImagesForEvents = async (eventsToEnrich: ParsedEvent[]): Promise<ParsedEvent[]> => {
+    return Promise.all(
+      eventsToEnrich.map(async (event) => {
+        const category = extractCategory(event.description);
+
+        if (!category) {
+          return { ...event, categoryImage: null };
+        }
+
+        if (!accessToken) {
+          console.warn('No access token—skipping category image');
+          return { ...event, categoryImage: null };
+        }
+
+        try {
+          const apiUrl = `https://api.twitch.tv/helix/games?name=${encodeURIComponent(category)}`;
+
+          const response = await fetch(apiUrl, {
+            headers: {
+              'Client-ID': clientId,
+              'Authorization': `Bearer ${accessToken}`,
+            },
+          });
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            if (response.status === 401) {
+              console.error('401: Token invalid—refetching...', errorText);
+              await fetchAccessToken();
+              return { ...event, categoryImage: null };
+            }
+            throw new Error(`API: ${response.status} - ${errorText}`);
+          }
+
+          const data = await response.json();
+          if (data.data && data.data.length > 0) {
+            const boxArtUrl = data.data[0].box_art_url
+              ?.replace('{width}', '272')
+              ?.replace('{height}', '380');
+            return { ...event, categoryImage: boxArtUrl || null };
+          }
+        } catch (err) {
+          console.error(`Error fetching image for "${category}":`, err);
+        }
+
+        return { ...event, categoryImage: null };
+      })
+    );
   };
 
   useEffect(() => {
@@ -370,12 +451,11 @@ const fetchBroadcasterInfo = async (username: string) => {
 // Updated handleSubmit
 const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
-  const twitchMode = !!twitchUsername; // Auto-detect mode
-  if (!twitchUsername && !webcalUrl) {
-    setError('Enter Twitch username or webcal URL');
+  if (!twitchUsername) {
+    setError('Enter Twitch username');
     return;
   }
-  await fetchAndParseCalendar(twitchMode);
+  await fetchAndParseCalendar(true);
 };
 
 const handleReset = () => {
@@ -385,7 +465,12 @@ const handleReset = () => {
   setError('');
   setTabValue(0);
   setShareSheetOpen(false);
+  setCreateScheduleDialogOpen(false);
   setScheduleImageDataUrl('');
+  setShowEndDate(false);
+  setShowDuration(false);
+  setIsCustomSchedule(false);
+  setProfileImageUrl('');
 };
 
   const copyToClipboard = () => {
@@ -433,16 +518,21 @@ const handleReset = () => {
         </Box>
         <Typography variant="h5" className="form-input" sx={{ mb: 2 }}>- OR -</Typography>
         <Box className="form-group">
-          <TextField
-            id="webcalUrl"
-            label="Stream Schedule Calendar URL"
-            variant="outlined"
-            value={webcalUrl}
-            onChange={(e) => setWebcalUrl(e.target.value)}
-            placeholder="webcal://example.com/calendar.ics"
-            className="form-input"
+          <Button
+            variant="contained"
+            onClick={() => setCreateScheduleDialogOpen(true)}
             fullWidth
-            />
+            sx={{ 
+              py: 1.5,
+              backgroundColor: '#9146FF',
+              color: '#ffffff',
+              '&:hover': {
+                backgroundColor: '#7a3bb8',
+              },
+            }}
+          >
+            {events.length > 0 ? 'Edit Your Schedule' : 'Create Your Own Schedule'}
+          </Button>
         </Box>
         <Typography variant="h5" className="form-input options-heading">Options</Typography>
         <Box className="form-group">
@@ -488,7 +578,7 @@ const handleReset = () => {
         <Box className="button-container">
           <Button
             type="submit"
-            disabled={loading || (!twitchUsername && !webcalUrl)}
+            disabled={loading || !twitchUsername}
             variant="contained"
             className="button"
             >
@@ -699,6 +789,26 @@ const handleReset = () => {
         imageDataUrl={scheduleImageDataUrl}
         filename={`${twitchUsername || 'schedule'}_${imageSize.width}x${imageSize.height}.png`}
         title={`${twitchUsername}'s Stream Schedule`}
+      />
+      <CreateScheduleDialog
+        open={createScheduleDialogOpen}
+        onClose={() => setCreateScheduleDialogOpen(false)}
+        onSave={(customEvents, channelName, profilePictureUrl) => {
+          setEvents(customEvents);
+          setIsCustomSchedule(true);
+          if (channelName) {
+            setTwitchUsername(channelName);
+          }
+          if (profilePictureUrl) {
+            setProfileImageUrl(profilePictureUrl);
+          }
+          setCreateScheduleDialogOpen(false);
+        }}
+        searchCategories={searchTwitchCategories}
+        fetchCategoryImages={fetchCategoryImagesForEvents}
+        initialEvents={events}
+        initialChannelName={twitchUsername}
+        initialProfilePictureUrl={profileImageUrl}
       />
       </Container>
     );

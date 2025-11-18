@@ -13,6 +13,7 @@
 
 import { ParsedEvent } from '../App';
 import { formatStartEndDates } from './dateFormatting';
+import moment from 'moment';
 
 interface CanvasConfig {
   width: number;
@@ -302,13 +303,24 @@ export async function renderScheduleToCanvas(
 
     // Only show date range if there's more than one event
     if (events.length > 1) {
-      // Extract date part (everything before " [at]" or " at ")
-      const startDateFull = events[0].start;
-      const startDate = startDateFull.split(' [at] ')[0] || startDateFull.split(' at ')[0];
+      // Extract date part only (no time)
+      // Handle both custom schedule format "MMM D, YYYY [at] h:mm A" and calendar formats like "MM-DD-YYYY hh:mm A"
+      const extractDateOnly = (dateStr: string) => {
+        // Try parsing with custom schedule format first
+        let parsed = moment(dateStr, 'MMM D, YYYY [at] h:mm A');
+        
+        // If that didn't work, try with the calendar format
+        if (!parsed.isValid() && dateFormat) {
+          parsed = moment(dateStr, dateFormat);
+        }
+        
+        // Format to a clean date format: "MMM D, YYYY"
+        return parsed.isValid() ? parsed.format('MMM D, YYYY') : dateStr.split(' ')[0];
+      };
       
+      const startDate = extractDateOnly(events[0].start);
       const lastEventWithStart = events.findLast((e) => e.start) || events[0];
-      const endDateFull = lastEventWithStart.start;
-      const endDate = endDateFull.split(' [at] ')[0] || endDateFull.split(' at ')[0];
+      const endDate = extractDateOnly(lastEventWithStart.start);
       
       const subtitleText = `${startDate} - ${endDate}`;
       ctx.fillText(subtitleText, headerCenterX, headerTopMargin + scaleDimension(LAYOUT.avatarSize, 1) + 16 + titleSize + 8);

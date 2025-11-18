@@ -7,15 +7,19 @@ import Footer from './Footer';
 import { GenerateScheduleImage, ScheduleImageTemplate } from './components/ScheduleImage';
 import { ShareSheet } from './components/ShareSheet';
 import logoSvg from './assets/stream_share_logo.svg';
+import { formatStartEndDates } from './utils/dateFormatting';
 
 
 export interface ParsedEvent {
   summary: string;
   start: string;
+  end?: string | null;
+  duration?: string | null;
   discordTimestamp: string;
   description: string;
   categoryImage?: string | null;
   unixTimestamp: number;
+  endUnixTimestamp?: number | null;
 }
 
 // Custom TabPanel component
@@ -60,6 +64,8 @@ function App() {
   const [profileImageUrl, setProfileImageUrl] = useState<string>('');
   const [shareSheetOpen, setShareSheetOpen] = useState(false);
   const [scheduleImageDataUrl, setScheduleImageDataUrl] = useState<string>('');
+  const [showEndDate, setShowEndDate] = useState(false);
+  const [showDuration, setShowDuration] = useState(false);
 
 
   const imageSize = { width: 1080, height: 1350 };
@@ -92,6 +98,31 @@ function App() {
       case 'F': return timestamp.format('dddd, MMMM D, YYYY h:mm A');
       case 'R': return timestamp.fromNow();
       default: return discordTimestamp;
+    }
+  };
+
+  const formatDiscordTimestampRange = (discordTimestamp: string, endUnixTimestamp: number | null | undefined, style: string): string => {
+    if (!endUnixTimestamp) return formatDiscordTimestamp(discordTimestamp);
+
+    const match = discordTimestamp.match(/<t:(\d+):([a-zA-Z])>/);
+    if (!match) return discordTimestamp;
+    const [, unixTimestamp] = match;
+    
+    const startTime = moment.unix(parseInt(unixTimestamp));
+    const endTime = moment.unix(endUnixTimestamp);
+
+    // Check if same day
+    if (startTime.format('YYYY-MM-DD') === endTime.format('YYYY-MM-DD')) {
+      // Same day: show start full timestamp and end time only
+      const startFormatted = formatDiscordTimestamp(discordTimestamp);
+      const endFormatted = endTime.format('h:mm A');
+      return `${startFormatted} - ${endFormatted}`;
+    } else {
+      // Different days: show both full timestamps
+      const startFormatted = formatDiscordTimestamp(discordTimestamp);
+      const endDiscordTimestamp = `<t:${endUnixTimestamp}:${style}>`;
+      const endFormatted = formatDiscordTimestamp(endDiscordTimestamp);
+      return `${startFormatted} - ${endFormatted}`;
     }
   };
 
@@ -232,14 +263,19 @@ const fetchBroadcasterInfo = async (username: string) => {
       vevents.forEach((vevent) => {
         const event = new window.ICAL.Event(vevent);
         const startDate = event.startDate ? moment(event.startDate.toJSDate()) : null;
+        const endDate = event.endDate ? moment(event.endDate.toJSDate()) : null;
+        const duration = endDate?.diff(startDate, 'hours')
 
         if (startDate && startDate.isValid() && startDate.isBetween(now, endDateRange, null, '[]')) {
           parsedEvents.push({
             summary: event.summary || 'No title',
             start: startDate.format(dateFormat),
+            end: endDate ? endDate.format(dateFormat) : null,
+            duration: duration ? duration + (duration && duration > 1 ? ' hours' : ' hour') : null, // Updated duration for display.
             discordTimestamp: `<t:${startDate.unix()}:${timestampFormat}>`,
             description: event.description || 'No description',
-            unixTimestamp: startDate.unix()
+            unixTimestamp: startDate.unix(),
+            endUnixTimestamp: endDate ? endDate.unix() : null
           });
         }
 
@@ -248,13 +284,17 @@ const fetchBroadcasterInfo = async (username: string) => {
           let next;
           while ((next = iterator.next()) && moment(next.toJSDate()).isBefore(endDateRange)) {
             const occurrenceStart = moment(next.toJSDate());
+            const occurrenceEnd = event.endDate ? moment(event.endDate.toJSDate()).add(occurrenceStart.diff(startDate)) : null;
             if (occurrenceStart.isValid() && occurrenceStart.isBetween(now, endDateRange, null, '[]')) {
               parsedEvents.push({
                 summary: event.summary || 'No title',
                 start: occurrenceStart.format(dateFormat),
+                end: occurrenceEnd ? moment(occurrenceEnd).format(dateFormat) : null,
+                duration: occurrenceEnd ? occurrenceEnd?.diff(occurrenceStart, 'hours') + (occurrenceEnd?.diff(occurrenceStart, 'hours') && occurrenceEnd?.diff(occurrenceStart, 'hours') > 1 ? ' hours' : ' hour') : null,
                 discordTimestamp: `<t:${occurrenceStart.unix()}:${timestampFormat}>`,
                 description: event.description || 'No description',
-                unixTimestamp: occurrenceStart.unix()
+                unixTimestamp: occurrenceStart.unix(),
+                endUnixTimestamp: occurrenceEnd ? occurrenceEnd.unix() : null
               });
             }
           }
@@ -409,6 +449,29 @@ const handleSubmit = async (e: React.FormEvent) => {
             <MenuItem value="DD-MM-YYYY hh:mm A">DD-MM-YYYY hh:mm A</MenuItem>
           </Select>
           </FormControl>
+
+        </Box>
+        <Box className="form-group">
+          <FormControlLabel
+            control={
+              <Switch
+                checked={showEndDate}
+                onChange={(e) => setShowEndDate(e.target.checked)}
+                className="preview-switch"
+              />
+            }
+            label="Show End Date"
+          />
+          <FormControlLabel
+            control={
+              <Switch
+                checked={showDuration}
+                onChange={(e) => setShowDuration(e.target.checked)}
+                className="preview-switch"
+              />
+            }
+            label="Show Duration"
+          />
         </Box>
         <Box className="button-container">
           <Button
@@ -439,15 +502,25 @@ const handleSubmit = async (e: React.FormEvent) => {
                   No events found for the selected period.
                 </Typography>
               )}
-              {eventsForImage.map((event: ParsedEvent, index) => (
+              {eventsForImage.map((event: ParsedEvent, index) => {
+                const { startDisplay, endDisplay } = formatStartEndDates(event.start, event.end, dateFormat);
+                return (
                 <Box key={index} className="event-container">
                   <div className="event">
                     <div className="event-details">
                       <Typography variant="h6" className="event-title">
                         <strong>{event.summary}</strong>
                       </Typography>
-                      <Typography className="event-info"><strong>Category:</strong> {extractCategory(event.description)}</Typography>
-                      <Typography className="event-info"><strong>Start:</strong> {event.start}</Typography>
+                      <Typography className="event-info"><strong>Playing:</strong> {extractCategory(event.description)}</Typography>
+                      {!showEndDate &&(
+                        <Typography className="event-info">{startDisplay}</Typography>
+                      )}
+                      {showEndDate && endDisplay && (
+                        <Typography className="event-info">{startDisplay} - {endDisplay}</Typography>
+                      )}
+                      {showDuration && event.duration && (
+                        <Typography className="event-info"><strong>Duration:</strong> {event.duration}</Typography>
+                      )}
                     </div>
                     {event.categoryImage && (
                       <img
@@ -460,7 +533,8 @@ const handleSubmit = async (e: React.FormEvent) => {
                     )}
                   </div>
                 </Box>
-              ))}
+                );
+              })}
               <Box className="export-button-container">
                 <Button
                   variant="contained"
@@ -473,7 +547,10 @@ const handleSubmit = async (e: React.FormEvent) => {
                       daysForward,
                       profileImageUrl,
                       extractCategory,
-                      size: imageSize
+                      size: imageSize,
+                      showEndDate,
+                      showDuration,
+                      dateFormat
                     });
                     if (imageUrl) {
                       setScheduleImageDataUrl(imageUrl);
@@ -533,13 +610,37 @@ const handleSubmit = async (e: React.FormEvent) => {
                   label="Preview Toggle"
                   />
                 </Box>
-              {events.map((event: ParsedEvent, index) => (
+              {events.map((event: ParsedEvent, index) => {
+                let timeString = event.discordTimestamp;
+                
+                // If end timestamp exists and showEndDate is enabled, append it to the time string
+                if (showEndDate && event.endUnixTimestamp) {
+                  // Check if same day
+                  const startTime = moment.unix(parseInt(event.discordTimestamp.match(/<t:(\d+):/)?.[1] || '0'));
+                  const endTime = moment.unix(event.endUnixTimestamp);
+                  
+                  let endDiscordTimestamp;
+                  if (startTime.format('YYYY-MM-DD') === endTime.format('YYYY-MM-DD')) {
+                    // Same day: use only time format (:t)
+                    endDiscordTimestamp = `<t:${event.endUnixTimestamp}:t>`;
+                  } else {
+                    // Different days: use full format
+                    endDiscordTimestamp = `<t:${event.endUnixTimestamp}:${timestampFormat}>`;
+                  }
+                  timeString = `${timeString} - ${endDiscordTimestamp}`;
+                }
+                
+                // Apply preview mode formatting if enabled
+                const displayTime = previewMode ? timeString.split(' - ').map(ts => formatDiscordTimestamp(ts.trim())).join(' - ') : timeString;
+                
+                return (
                 <Box key={index} className="compact-event">
                   <Typography>
-                    {previewMode ? formatDiscordTimestamp(event.discordTimestamp) : event.discordTimestamp} {event.summary} - {extractCategory(event.description)}
+                    {displayTime} {event.summary} - {extractCategory(event.description)} {showDuration && event.duration ? `- ${event.duration}` : ''}
                   </Typography>
                 </Box>
-              ))}
+                );
+              })}
               {events.length > 0 && (
                 <Box className="copy-button-container">
                   <Button
@@ -562,6 +663,9 @@ const handleSubmit = async (e: React.FormEvent) => {
               profileImageUrl={profileImageUrl}
               extractCategory={extractCategory}
               size={imageSize}
+              showEndDate={showEndDate}
+              showDuration={showDuration}
+              dateFormat={dateFormat}
             />
           )}
           </Box>

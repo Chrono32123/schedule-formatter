@@ -12,6 +12,7 @@
  */
 
 import { ParsedEvent } from '../App';
+import { formatStartEndDates } from './dateFormatting';
 
 interface CanvasConfig {
   width: number;
@@ -238,7 +239,10 @@ export async function renderScheduleToCanvas(
   twitchUsername: string,
   profileImageUrl: string | undefined,
   footerText: string,
-  extractCategory: (desc: string) => string | null
+  extractCategory: (desc: string) => string | null,
+  showEndDate?: boolean,
+  showDuration?: boolean,
+  dateFormat?: string
 ): Promise<string> {
   const { width, height, eventCount, dpi = 1 } = config;
   const fitScale = calculateFitScale(eventCount);
@@ -362,11 +366,25 @@ export async function renderScheduleToCanvas(
     ctx.fillStyle = COLORS.subtle;
 
     const category = extractCategory(event.description) || 'Stream';
-    ctx.fillText(`Category: ${category}`, eventLeft, eventContentY);
+    ctx.fillText(`Playing: ${category}`, eventLeft, eventContentY);
     eventContentY += eventMetaSize * 1.3;
 
-    const startTime = event.start || 'Time not available';
-    ctx.fillText(`Start: ${startTime}`, eventLeft, eventContentY);
+    // Format start/end dates intelligently (same day = show only end time)
+    const dateFormatPattern = dateFormat || 'MM-DD-YYYY hh:mm A';
+    const { startDisplay, endDisplay } = formatStartEndDates(event.start, event.end, dateFormatPattern);
+
+    // Show date range: just start if no end date, or "start - end" if end date exists and showEndDate is true
+    if (!showEndDate) {
+      ctx.fillText(startDisplay, eventLeft, eventContentY);
+    } else if (endDisplay) {
+      ctx.fillText(`${startDisplay} - ${endDisplay}`, eventLeft, eventContentY);
+    }
+    eventContentY += eventMetaSize * 1.3;
+
+    // Draw duration if showDuration is true and duration exists
+    if (showDuration && event.duration) {
+      ctx.fillText(`Duration: ${event.duration}`, eventLeft, eventContentY);
+    }
 
     // Draw event image on the right if available
     if (event.categoryImage) {
@@ -379,7 +397,7 @@ export async function renderScheduleToCanvas(
 
     // Move to next event with spacing
     const titleHeight = titleLines.length * eventTitleSize * 1.2;
-    const metadataHeight = eventMetaSize * 1.3 * 2;
+    const metadataHeight = eventMetaSize * 1.3 * (2 + (showEndDate && event.end ? 1 : 0) + (showDuration && event.duration ? 1 : 0));
     const eventHeight = Math.max(titleHeight + metadataHeight, eventImageHeight) + scaleDimension(16, fitScale);
     currentY += eventHeight;
   }

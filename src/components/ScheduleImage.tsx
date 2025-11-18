@@ -2,6 +2,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ParsedEvent } from '../App';
 import { renderScheduleToCanvas } from '../utils/canvasRenderer';
+import { formatStartEndDates } from '../utils/dateFormatting';
 import { Typography } from '@mui/material';
 import './scheduleImage.css';
 
@@ -18,10 +19,13 @@ interface Props {
   profileImageUrl?: string;
   extractCategory: (desc: string) => string | null;
   size: ImageSize;
+  showEndDate?: boolean;
+  showDuration?: boolean;
+  dateFormat?: string;
 }
 
 export const GenerateScheduleImage = async (props: Props): Promise<string | null> => {
-  const { size, events, eventCount, twitchUsername, profileImageUrl, extractCategory } = props;
+  const { size, events, eventCount, twitchUsername, profileImageUrl, extractCategory, showEndDate, showDuration, dateFormat } = props;
 
   try {
     // Use Canvas-based rendering instead of html-to-image
@@ -40,7 +44,10 @@ export const GenerateScheduleImage = async (props: Props): Promise<string | null
       twitchUsername,
       profileImageUrl,
       'Created with Stream Schedule Formatter',
-      extractCategory
+      extractCategory,
+      showEndDate,
+      showDuration,
+      dateFormat
     );
 
     return dataUrl;
@@ -58,6 +65,9 @@ export const ScheduleImageTemplate: React.FC<Props> = ({
   profileImageUrl,
   extractCategory,
   size,
+  showEndDate,
+  showDuration,
+  dateFormat,
 }) => {
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const headerRef = useRef<HTMLDivElement | null>(null);
@@ -128,7 +138,10 @@ export const ScheduleImageTemplate: React.FC<Props> = ({
             <div
               ref={eventsRef}
               className={`schedule-image-events ${centerEvents ? 'center-events' : ''}`}>
-              {events.map((ev, i) => (
+              {events.map((ev, i) => {
+                const dateFormatPattern = dateFormat || 'MM-DD-YYYY hh:mm A';
+                const { startDisplay, endDisplay } = formatStartEndDates(ev.start, ev.end, dateFormatPattern);
+                return (
                 <div key={i} className="event-container">
                   <div className="event">
                     <div className="event-details">
@@ -139,8 +152,18 @@ export const ScheduleImageTemplate: React.FC<Props> = ({
                         <strong>Category:</strong> {extractCategory(ev.description)}
                       </Typography>
                       <Typography className="event-start">
-                        <strong>Start:</strong> {ev.start}
+                        <strong>Start:</strong> {startDisplay}
                       </Typography>
+                      {showEndDate && endDisplay && (
+                        <Typography className="event-end">
+                          <strong>End:</strong> {endDisplay}
+                        </Typography>
+                      )}
+                      {showDuration && ev.duration && (
+                        <Typography className="event-duration">
+                          <strong>Duration:</strong> {ev.duration}
+                        </Typography>
+                      )}
                     </div>
                     {ev.categoryImage && (
                       <img
@@ -151,7 +174,8 @@ export const ScheduleImageTemplate: React.FC<Props> = ({
                     )}
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* Footer */}

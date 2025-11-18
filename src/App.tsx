@@ -146,7 +146,8 @@ function App() {
       setTokenExpiry(Date.now() + (expires_in * 1000));
       console.log('Token fetched successfully');
     } catch (err) {
-      console.error('Token fetch failed:', err.response?.data || err.message);
+      const error = err as { response?: { data?: unknown } } | Error;
+      console.error('Token fetch failed:', 'response' in error ? error.response?.data : (error instanceof Error ? error.message : 'Unknown error'));
     }
   };
 
@@ -248,20 +249,20 @@ const fetchBroadcasterInfo = async (username: string) => {
 
       let jcalData;
       try {
-        jcalData = window.ICAL.parse(icsData);
+        jcalData = (window as unknown as { ICAL: { parse: (data: string) => unknown } }).ICAL.parse(icsData);
       } catch (parseErr) {
         throw new Error('Invalid ICS data format');
       }
-      const comp = new window.ICAL.Component(jcalData);
-      const vevents = comp.getAllSubcomponents('vevent');
+      const comp = new (window as unknown as { ICAL: { Component: new (data: unknown) => unknown } }).ICAL.Component(jcalData);
+      const vevents = (comp as { getAllSubcomponents: (type: string) => unknown[] }).getAllSubcomponents('vevent');
 
       const now = moment().startOf('day');
       const endDateRange = moment().add(parseInt(daysForward), 'days').endOf('day');
 
       const parsedEvents: ParsedEvent[] = [];
 
-      vevents.forEach((vevent) => {
-        const event = new window.ICAL.Event(vevent);
+      vevents.forEach((vevent: unknown) => {
+        const event = new (window as unknown as { ICAL: { Event: new (data: unknown) => { summary?: string; description?: string; startDate?: { toJSDate: () => Date }; endDate?: { toJSDate: () => Date }; isRecurring: () => boolean; iterator: () => { next: () => unknown } } } }).ICAL.Event(vevent);
         const startDate = event.startDate ? moment(event.startDate.toJSDate()) : null;
         const endDate = event.endDate ? moment(event.endDate.toJSDate()) : null;
         const duration = endDate?.diff(startDate, 'hours')
@@ -280,7 +281,7 @@ const fetchBroadcasterInfo = async (username: string) => {
         }
 
         if (event.isRecurring()) {
-          const iterator = event.iterator();
+          const iterator = event.iterator() as { next: () => { toJSDate: () => Date } | null };
           let next;
           while ((next = iterator.next()) && moment(next.toJSDate()).isBefore(endDateRange)) {
             const occurrenceStart = moment(next.toJSDate());
@@ -359,7 +360,8 @@ const fetchBroadcasterInfo = async (username: string) => {
 
       setEvents(enrichedEvents);
     } catch (err) {
-      setError(`Error fetching or parsing calendar: ${err.message}`);
+      const error = err instanceof Error ? err : new Error(String(err));
+      setError(`Error fetching or parsing calendar: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -374,6 +376,16 @@ const handleSubmit = async (e: React.FormEvent) => {
     return;
   }
   await fetchAndParseCalendar(twitchMode);
+};
+
+const handleReset = () => {
+  setWebcalUrl('');
+  setTwitchUsername('');
+  setEvents([]);
+  setError('');
+  setTabValue(0);
+  setShareSheetOpen(false);
+  setScheduleImageDataUrl('');
 };
 
   const copyToClipboard = () => {
@@ -476,11 +488,19 @@ const handleSubmit = async (e: React.FormEvent) => {
         <Box className="button-container">
           <Button
             type="submit"
-            disabled={loading}
+            disabled={loading || (!twitchUsername && !webcalUrl)}
             variant="contained"
             className="button"
             >
             {loading ? 'Loading...' : 'Fetch Events'}
+          </Button>
+          <Button
+            type="button"
+            onClick={handleReset}
+            variant="outlined"
+            className="button"
+            >
+            Reset
           </Button>
         </Box>
       </Box>

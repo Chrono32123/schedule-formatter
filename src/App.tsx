@@ -519,12 +519,19 @@ const handleReset = () => {
         <Typography variant="h5" className="form-input" sx={{ mb: 2 }}>- OR -</Typography>
         <Box className="form-group">
           <Button
-            variant="outlined"
+            variant="contained"
             onClick={() => setCreateScheduleDialogOpen(true)}
             fullWidth
-            sx={{ py: 1.5 }}
+            sx={{ 
+              py: 1.5,
+              backgroundColor: '#9146FF',
+              color: '#ffffff',
+              '&:hover': {
+                backgroundColor: '#7a3bb8',
+              },
+            }}
           >
-            Create Your Own Schedule
+            {events.length > 0 ? 'Edit Your Schedule' : 'Create Your Own Schedule'}
           </Button>
         </Box>
         <Typography variant="h5" className="form-input options-heading">Options</Typography>

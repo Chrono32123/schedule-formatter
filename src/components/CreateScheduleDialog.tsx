@@ -283,11 +283,11 @@ export const CreateScheduleDialog: React.FC<CreateScheduleDialogProps> = ({
 
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ backgroundColor: '#1a1a1a', color: '#ffffff', pb: 3, textAlign: 'center' }}>
+      <DialogTitle sx={{ backgroundColor: '#1a1a1a', color: '#ffffff', pb: 2, textAlign: 'center' }}>
         Create Your Own Schedule
       </DialogTitle>
-      <DialogContent sx={{ backgroundColor: '#1a1a1a', pt: 4 }}>
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <DialogContent sx={{ backgroundColor: '#1a1a1a', pt: 2, pb: 2 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
           {/* General Error Message */}
           {errors.general && (
             <Typography sx={{ color: '#ff6b6b', fontSize: '0.875rem' }}>
@@ -296,7 +296,7 @@ export const CreateScheduleDialog: React.FC<CreateScheduleDialogProps> = ({
           )}
 
           {/* Channel Name and Profile Picture - Optional Section */}
-          <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+          <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start' }}>
             <TextField
               label="Channel/User Name (Optional)"
               value={channelName}
@@ -356,7 +356,7 @@ export const CreateScheduleDialog: React.FC<CreateScheduleDialogProps> = ({
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: 1,
-                  p: 2,
+                  p: 1,
                   border: '2px dashed #9146FF',
                   borderRadius: '8px',
                   backgroundColor: '#1a1a1a',
@@ -371,23 +371,48 @@ export const CreateScheduleDialog: React.FC<CreateScheduleDialogProps> = ({
                 htmlFor="profile-picture-input"
               >
                 {profilePictureUrl ? (
-                  <>
-                    <Box
-                      component="img"
-                      src={profilePictureUrl}
-                      alt="Profile"
-                      sx={{
-                        width: 80,
-                        height: 80,
-                        borderRadius: '50%',
-                        border: '3px solid #9146FF',
-                        objectFit: 'cover',
-                      }}
-                    />
-                    <Typography sx={{ color: '#ffffff', fontSize: '0.875rem', textAlign: 'center' }}>
+                  <Box sx={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}>
+                    <Box sx={{ position: 'relative' }}>
+                      <Box
+                        component="img"
+                        src={profilePictureUrl}
+                        alt="Profile"
+                        sx={{
+                          width: 80,
+                          height: 80,
+                          borderRadius: '50%',
+                          border: '3px solid #9146FF',
+                          objectFit: 'cover',
+                        }}
+                      />
+                      <IconButton
+                        size="small"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setProfilePictureUrl(null);
+                        }}
+                        sx={{
+                          position: 'absolute',
+                          top: -8,
+                          right: -8,
+                          backgroundColor: '#ff6b6b',
+                          color: '#ffffff',
+                          width: 24,
+                          height: 24,
+                          padding: 0,
+                          '&:hover': {
+                            backgroundColor: '#ff5252',
+                          },
+                        }}
+                        title="Remove picture"
+                      >
+                        ✕
+                      </IconButton>
+                    </Box>
+                    <Typography sx={{ color: '#ffffff', fontSize: '0.75rem', textAlign: 'center' }}>
                       Click or drag to change
                     </Typography>
-                  </>
+                  </Box>
                 ) : (
                   <>
                     <Typography sx={{ color: '#9146FF', fontWeight: 'bold' }}>
@@ -514,8 +539,8 @@ export const CreateScheduleDialog: React.FC<CreateScheduleDialogProps> = ({
             }}
           />
 
-          {/* Date/Time Inputs - Side by Side */}
-          <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', px: 2 }}>
+          {/* Date/Time Inputs - Side by Side on desktop, stacked on mobile */}
+          <Box sx={{ display: 'flex', gap: 1.5, justifyContent: 'center', px: 1, flexDirection: { xs: 'column', sm: 'row' } }}>
             <TextField
               label="Start Date/Time"
               name="startDateTime"
@@ -581,7 +606,7 @@ export const CreateScheduleDialog: React.FC<CreateScheduleDialogProps> = ({
             />
           </Box>
 
-          <Box sx={{ display: 'flex', gap: 2, alignSelf: 'flex-start', mt: 1 }}>
+          <Box sx={{ display: 'flex', gap: 1, alignSelf: 'flex-start', mt: 0.5 }}>
             <Button
               variant="contained"
               onClick={handleAddEvent}
@@ -623,41 +648,48 @@ export const CreateScheduleDialog: React.FC<CreateScheduleDialogProps> = ({
               component={Paper}
               sx={{
                 backgroundColor: '#242424',
-                mt: 3,
+                mt: 1.5,
               }}
             >
               <Table size="small">
                 <TableHead>
                   <TableRow sx={{ backgroundColor: '#1a1a1a' }}>
-                    <TableCell sx={{ color: '#ffffff', fontWeight: 'bold' }}>
+                    <TableCell sx={{ color: '#ffffff', fontWeight: 'bold', p: 0.75, fontSize: '0.85rem' }}>
                       Title
                     </TableCell>
-                    <TableCell sx={{ color: '#ffffff', fontWeight: 'bold' }}>
+                    <TableCell sx={{ color: '#ffffff', fontWeight: 'bold', p: 0.75, fontSize: '0.85rem' }}>
                       Start
                     </TableCell>
-                    <TableCell sx={{ color: '#ffffff', fontWeight: 'bold' }}>
+                    <TableCell sx={{ color: '#ffffff', fontWeight: 'bold', p: 0.75, fontSize: '0.85rem' }}>
                       End
                     </TableCell>
-                    <TableCell sx={{ color: '#ffffff', fontWeight: 'bold' }}>
+                    <TableCell sx={{ color: '#ffffff', fontWeight: 'bold', p: 0.75, fontSize: '0.85rem' }}>
                       Category
                     </TableCell>
-                    <TableCell sx={{ color: '#ffffff', fontWeight: 'bold' }}>
+                    <TableCell sx={{ color: '#ffffff', fontWeight: 'bold', p: 0.75, fontSize: '0.85rem' }}>
                       Duration
                     </TableCell>
-                    <TableCell align="center" sx={{ color: '#ffffff', fontWeight: 'bold' }}>
+                    <TableCell align="center" sx={{ color: '#ffffff', fontWeight: 'bold', p: 0.5, fontSize: '0.85rem' }}>
                       Action
                     </TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {events.map((event, index) => (
-                    <TableRow key={index} sx={{ '&:hover': { backgroundColor: '#2a2a2a' } }}>
-                      <TableCell sx={{ color: '#ffffff' }}>{event.summary}</TableCell>
-                      <TableCell sx={{ color: '#ffffff' }}>{event.start}</TableCell>
-                      <TableCell sx={{ color: '#ffffff' }}>{event.end}</TableCell>
-                      <TableCell sx={{ color: '#ffffff' }}>{event.description}</TableCell>
-                      <TableCell sx={{ color: '#ffffff' }}>{event.duration}</TableCell>
-                      <TableCell align="center">
+                  {events.map((event, index) => {
+                    // Abbreviate dates: "Nov 18, 2025 at 3:00 PM" -> "11/18 3:00P"
+                    const abbreviateDate = (dateStr: string | null | undefined) => {
+                      if (!dateStr) return '-';
+                      const date = moment(dateStr, 'MMM D, YYYY [at] h:mm A');
+                      return date.format('M/D h:mmA').toLowerCase();
+                    };
+                    return (
+                    <TableRow key={index} sx={{ '&:hover': { backgroundColor: '#2a2a2a' }, height: '40px' }}>
+                      <TableCell sx={{ color: '#ffffff', p: 0.75, fontSize: '0.85rem', maxWidth: '80px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{event.summary}</TableCell>
+                      <TableCell sx={{ color: '#ffffff', p: 0.75, fontSize: '0.85rem', minWidth: '80px' }}>{abbreviateDate(event.start)}</TableCell>
+                      <TableCell sx={{ color: '#ffffff', p: 0.75, fontSize: '0.85rem', minWidth: '80px' }}>{abbreviateDate(event.end)}</TableCell>
+                      <TableCell sx={{ color: '#ffffff', p: 0.75, fontSize: '0.85rem', maxWidth: '70px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{event.description}</TableCell>
+                      <TableCell sx={{ color: '#ffffff', p: 0.75, fontSize: '0.85rem', minWidth: '60px' }}>{event.duration}</TableCell>
+                      <TableCell align="center" sx={{ p: 0.5 }}>
                         <IconButton
                           size="small"
                           onClick={() => handleEditEvent(index)}
@@ -666,7 +698,8 @@ export const CreateScheduleDialog: React.FC<CreateScheduleDialogProps> = ({
                             '&:hover': {
                               backgroundColor: 'rgba(145, 70, 255, 0.1)',
                             },
-                            mr: 1,
+                            mr: 0.25,
+                            padding: '4px',
                           }}
                           title="Edit event"
                         >
@@ -680,6 +713,7 @@ export const CreateScheduleDialog: React.FC<CreateScheduleDialogProps> = ({
                             '&:hover': {
                               backgroundColor: 'rgba(255, 107, 107, 0.1)',
                             },
+                            padding: '4px',
                           }}
                           title="Delete event"
                         >
@@ -687,7 +721,8 @@ export const CreateScheduleDialog: React.FC<CreateScheduleDialogProps> = ({
                         </IconButton>
                       </TableCell>
                     </TableRow>
-                  ))}
+                    );
+                  })}
                 </TableBody>
               </Table>
             </TableContainer>

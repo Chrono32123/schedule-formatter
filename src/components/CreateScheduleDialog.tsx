@@ -191,7 +191,7 @@ export const CreateScheduleDialog: React.FC<CreateScheduleDialogProps> = ({
 
     const startMoment = moment(formData.startDateTime);
     const endMoment = moment(formData.endDateTime);
-    const dateFormat = 'MMM D, YYYY [at] h:mm A';
+    const dateFormat = 'MM-DD-YYYY hh:mm A'; // Standardized to match Twitch format
 
     const newEvent: ParsedEvent = {
       summary: formData.title,
@@ -230,28 +230,11 @@ export const CreateScheduleDialog: React.FC<CreateScheduleDialogProps> = ({
   const handleEditEvent = (index: number) => {
     const event = events[index];
     if (event) {
-      // Try to parse dates - support multiple formats (custom schedule format and Twitch format)
-      const customFormat = 'MMM D, YYYY [at] h:mm A';
-      const twitchFormat = 'MM-DD-YYYY hh:mm A';
+      // Parse dates using standardized Twitch format
+      const dateFormat = 'MM-DD-YYYY hh:mm A';
       
-      // Try custom format first, then Twitch format, then flexible parsing
-      let dateObj = moment(event.start, customFormat, true);
-      if (!dateObj.isValid()) {
-        dateObj = moment(event.start, twitchFormat, true);
-      }
-      if (!dateObj.isValid()) {
-        // Fallback to flexible parsing
-        dateObj = moment(event.start);
-      }
-      
-      let endObj = moment(event.end, customFormat, true);
-      if (!endObj.isValid()) {
-        endObj = moment(event.end, twitchFormat, true);
-      }
-      if (!endObj.isValid()) {
-        // Fallback to flexible parsing
-        endObj = moment(event.end);
-      }
+      const dateObj = moment(event.start, dateFormat);
+      const endObj = moment(event.end, dateFormat);
       
       setFormData({
         title: event.summary,
@@ -413,7 +396,7 @@ export const CreateScheduleDialog: React.FC<CreateScheduleDialogProps> = ({
                         sx={{
                           width: 80,
                           height: 80,
-                          borderRadius: '50%',
+                          borderRadius: '12px',
                           border: `3px solid ${profileRingColor}`,
                           objectFit: 'cover',
                         }}
@@ -782,7 +765,7 @@ export const CreateScheduleDialog: React.FC<CreateScheduleDialogProps> = ({
                           mt: 0.25,
                         }}
                       >
-                        {moment(event.start, 'MMM D, YYYY [at] h:mm A').format('MMM D, YYYY [at] h:mm A')}
+                        {event.start}
                       </Typography>
                     </Box>
                     <Box sx={{ display: 'flex', gap: 0.5, ml: 1 }}>

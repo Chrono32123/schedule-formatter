@@ -45,7 +45,7 @@ export const GenerateScheduleImage = async (props: Props): Promise<string | null
       events,
       twitchUsername,
       profileImageUrl,
-      'Created with Stream Schedule Formatter',
+      'Created with Stream Share',
       extractCategory,
       showEndDate,
       showDuration,

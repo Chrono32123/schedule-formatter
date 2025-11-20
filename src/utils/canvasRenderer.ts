@@ -14,6 +14,7 @@
 import { ParsedEvent } from '../App';
 import { formatStartEndDates } from './dateFormatting';
 import moment from 'moment';
+import logoSvg from '../assets/stream_share_logo.svg';
 
 interface CanvasConfig {
   width: number;
@@ -516,16 +517,43 @@ export async function renderScheduleToCanvas(
   } // End of else block for multiple events
 
   // ============================================
-  // FOOTER
+  // FOOTER - Logo + Text inline
   // ============================================
+  const footerY = height - 35;
+  const logoSize = 20;
   const footerSize = scaleDimension(TYPOGRAPHY.footerSize, fitScale) * 1.5;
+  
   ctx.font = `${footerSize}px 'Roboto', sans-serif`;
   ctx.fillStyle = colors.subtle;
   ctx.globalAlpha = 0.85;
-  ctx.textAlign = 'center';
-
-  const footerY = height - 35;
-  ctx.fillText(footerText, width / 2, footerY);
+  
+  // Measure text components
+  const prefix = 'Created with ';
+  const suffix = ' Stream Share';
+  const prefixWidth = ctx.measureText(prefix).width;
+  const suffixWidth = ctx.measureText(suffix).width;
+  
+  // Calculate total width and starting position for centering
+  const totalWidth = prefixWidth + logoSize + 4 + suffixWidth; // 4px gap between logo and suffix
+  const startX = (width / 2) - (totalWidth / 2);
+  
+  // Draw prefix text
+  ctx.textAlign = 'left';
+  ctx.fillText(prefix, startX, footerY);
+  
+  // Draw logo
+  try {
+    const logoX = startX + prefixWidth;
+    const logoY = footerY - logoSize / 2 - 2;
+    await drawImage(ctx, logoSvg, logoX, logoY, logoSize, logoSize, 0);
+  } catch (err) {
+    console.warn('Failed to load footer logo', err);
+  }
+  
+  // Draw suffix text
+  const suffixX = startX + prefixWidth + logoSize + 4;
+  ctx.fillText(suffix, suffixX, footerY);
+  
   ctx.globalAlpha = 1;
   ctx.textAlign = 'left';
 

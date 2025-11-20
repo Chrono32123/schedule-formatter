@@ -1,80 +1,87 @@
-# Stream Share
+<div align="center">
+  <h1>
+    <img src="src/assets/stream_share_logo.svg" alt="Stream Share Logo" width="50" style="vertical-align: middle;"/>
+    Stream Share
+  </h1>
+  
+  **Create simple, shareable stream schedule images in seconds – no design tools needed.**
+</div>
 
-Create simple, shareable stream schedule images in seconds – no design tools needed.
-Like the name implies, this tool is meant to simplify sharing your stream schedule across social media platforms and your discord server by using your existing Twitch schedule! 
+---
 
+## What is Stream Share?
 
-## Project intent
+Stream Share is a web tool that transforms your Livestream schedule into a shareable images and Discord-ready timestamps. Whether you're a streamer, moderator, or community manager, Stream Share makes it easy to keep your audience informed about upcoming streams across all platforms.
 
-- Intent: This tool serves as an easy way for streamers, mods, and community managers to pull scheduled streams into a simple formatted list to share on Discord servers combined with a simple image showing upcoming streams that can be shared on social media as well.
-- Audience: Anyone can use it if they want but if you're a streamer, moderator, or community manager this tool can save you some time or effort. Also if you're just not a creative individual but want to share your stream schedule with some visual flair.
+**Perfect for:**
+- Streamers who want to share their schedule on social media
+- Community managers coordinating multiple channels
+- Anyone who wants visual flair without design software
 
-## How to use (quickstart)
+## How It Works
 
-### Pre-Requisite: Schedule your upcoming streams from your [Twitch Dashboard](https://dashboard.twitch.tv)
-1. From the left side menu to go to Settings -> Channel
-2. Click Schedule in the top navigation on the Channel Settings page.
-3. Add your streams! Be sure to put a title, time, and category for best results. 
+Stream Share gives you two ways to create your schedule, then converts it into shareable formats:
 
-### Using The Easy Schedule Tool
-1. Visit: [Easy Schedule Tool](https://chrono32123.github.io/schedule-formatter/) (using GitHub Pages to host)
-2. Input your twitch username or your twitch calendar URL
-3. Get your next week of streams in a list that you can export into a custom image OR copy a list of Discord formatted timestamps to share on your local server.
+1. **Schedule Images** – Polished PNG graphics perfect for Twitter, Instagram, or Discord announcements
+2. **Discord Timestamps** – Copy-paste formatted timestamps that automatically adjust to each viewer's timezone
 
+### Quick Start
 
-## Project-specific notes (must-know for contributors)
+**Option 1: Use your Twitch schedule**
 
-- Entry points:
-	- `src/App.tsx` — main UI, parsing, Twitch integration, and canonical `ParsedEvent` type.
-	- `src/components/ScheduleImage.tsx` — offscreen DOM canvas + `GenerateScheduleImage` helper used to export PNGs.
-- `index.html` loads `ical.js` from CDN and the code expects it as `window.ICAL`.
-- Twitch: supply `VITE_TWITCH_CLIENT_ID` and `VITE_TWITCH_CLIENT_SECRET` in a `.env` / `.env.local` file for token fetching (client credentials flow).
-- Image export is CSS-driven; sizing is controlled with CSS variables in `src/components/scheduleImage.css`.
+1. Set up your schedule on your [Twitch Dashboard](https://dashboard.twitch.tv) (**Settings → Channel → Schedule**)
+2. Visit [Stream Share](https://chrono32123.github.io/schedule-formatter/)
+3. Enter your Twitch username
+4. Choose your export format:
+   - **Copy Discord Timestamps** – Click to copy formatted text for Discord
+   - **Generate Image** – Download a PNG to share anywhere
 
-## Environment variables
+**Option 2: Create your own schedule**
 
-You will need to create a dev profile for the twitch api and then create an application to generate these.
+1. Visit [Stream Share](https://chrono32123.github.io/schedule-formatter/)
+2. Click **"Create Schedule"** to manually add events
+3. Enter stream titles, dates, times, and categories
+4. Export as images or Discord timestamps
 
-- VITE_TWITCH_CLIENT_ID — Twitch application client id
-- VITE_TWITCH_CLIENT_SECRET — Twitch application secret
+Perfect for non-Twitch streamers or anyone who doesn't use Twitch's calendar feature!
 
-Place them in `.env.local` in the project root (example):
+## Features
 
-```
-VITE_TWITCH_CLIENT_ID=your_client_id
-VITE_TWITCH_CLIENT_SECRET=your_client_secret
-```
+✨ **Automatic Game Icons** – Stream Share fetches game box art from Twitch for visual appeal  
+🕐 **Timezone Support** – Discord timestamps automatically adjust for every viewer  
+📅 **Week View** – Shows your next 7 days of scheduled streams  
+🎨 **Clean Design** – Professional-looking output without any design work  
+🔄 **Always in Sync** – Pull the latest schedule whenever you need it
 
-## Testing
+## Tips
 
-- Run tests with Vitest:
-
-```bash
-npm test
-```
-
-- Run local environment:
- ```bash
- npm run dev
- ```
-
-There are basic smoke tests for `ScheduleImageTemplate` and `App` in `src/__tests__`.
-
-## Troubleshooting
-
-- CORS when fetching third-party `webcal://`/ICS sources is a browser/runtime limitation. Use local ICS samples or a proxy for testing.
-- `window.ICAL` is provided by the CDN script in `index.html` — do not remove unless you modify import code accordingly.
-- If tests fail locally due to peer-deps, run `npm install --legacy-peer-deps` as a temporary workaround (we updated testing dependencies to support React 19).
+- **For best results**, include stream titles, categories, and times in your Twitch schedule
+- **Update frequently** – Generate new images as your schedule changes
+- **Share everywhere** – Use images for Twitter/Instagram and timestamps for Discord
+- **No account needed** – Just your public Twitch username
 
 ## Contributing
 
-- If you change image layout, prefer editing `src/components/scheduleImage.css` and the style props set on `#schedule-image-canvas` rather than hardcoding sizes in JSX.
-- When adding features that modify `ParsedEvent`, update the type in `src/App.tsx` and ensure `ScheduleImageTemplate` props are kept in sync.
+Contributions are welcome! This is an open-source project built with React, TypeScript, and Vite. Check out the [project repository](https://github.com/Chrono32123/schedule-formatter) to get started.
 
-## Where to look first when editing
+## Support
 
-- `src/App.tsx` — parsing, enrichment, API calls, and main UI.
-- `src/components/ScheduleImage.tsx` & `src/components/scheduleImage.css` — image layout and export.
-- `index.html` — global scripts (ical.js) and fonts.
+Have questions or issues? Feel free to [open an issue](https://github.com/Chrono32123/schedule-formatter/issues) on GitHub.
 
-Feel free to fill in the sections above (project intent, audience, goals) with the specific details you'd like to publish for this project.
+**Enjoying Stream Share?** Consider supporting the development:
+
+<a href='https://ko-fi.com/chrono_media' target='_blank'><img height='36' style='border:0px;height:36px;' src='https://storage.ko-fi.com/cdn/kofi2.png?v=3' border='0' alt='Buy Me a Coffee at ko-fi.com' /></a>
+
+
+
+## Join the Discord!
+
+If you'd like to provide feedback or share ideas for this project, join The Continuum Discord and take the @StreamShare-Updates role to get access to the feedback channels!
+
+<a href="https://discord.com/invite/HSKUEjk5K7" target="_blank"><img src="https://img.shields.io/badge/Join-The%20Continuum-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Join The Continuum Discord"></a>
+
+---
+
+<div align="center">
+  Made with ❤️ for the streaming community
+</div>

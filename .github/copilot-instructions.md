@@ -1,22 +1,31 @@
 ## Repository overview
 
-This is a small single-page React + Vite app (TypeScript) for formatting and exporting stream schedules.
-- Key entry points: `src/App.tsx` (parsing, Twitch integration, UI) and `src/components/ScheduleImage.tsx` (offscreen canvas + image export).
+Stream Share is a single-page React + Vite app (TypeScript) for creating and exporting stream schedules. Users can import schedules from Twitch or create custom schedules manually, then export them as shareable images or Discord-formatted timestamps.
+
+- Key entry points: 
+  - `src/App.tsx` — main UI, parsing, Twitch integration, manual schedule creation, and canonical `ParsedEvent` type
+  - `src/components/ScheduleImage.tsx` — offscreen canvas + image export
+  - `src/components/CreateScheduleDialog.tsx` — manual schedule entry dialog
+  - `src/components/ShareSheet.tsx` — Discord timestamp export
 - Build/dev: Vite (`npm run dev`, `npm run build`, `npm run preview`) — see `package.json` scripts.
 
 ## Important project-specific details for an AI coding agent
 
-- ical.js is loaded from CDN in `index.html` and accessed as `window.ICAL` (not imported). When modifying calendar parsing, prefer keeping the CDN approach or update `index.html` accordingly.
-- Twitch API: `VITE_TWITCH_CLIENT_ID` and `VITE_TWITCH_CLIENT_SECRET` environment variables are required for token fetches (client-credentials flow). Examples go in a `.env` / `.env.local` with VITE_ prefix.
-- Image generation uses CSS-driven layout in `src/components/scheduleImage.css` and `html-to-image` to export a fixed-size PNG. The DOM node is rendered offscreen (positioned at `left: -9999px`) and CSS variables control sizing and scaling.
+- **ical.js**: Loaded from CDN in `index.html` and accessed as `window.ICAL` (not imported). When modifying calendar parsing, prefer keeping the CDN approach or update `index.html` accordingly.
+- **Twitch API**: `VITE_TWITCH_CLIENT_ID` and `VITE_TWITCH_CLIENT_SECRET` environment variables are required for token fetches (client-credentials flow). Examples go in a `.env` / `.env.local` with VITE_ prefix.
+- **Image generation**: Uses CSS-driven layout in `src/components/scheduleImage.css` and `html-to-image` to export a fixed-size PNG. The DOM node is rendered offscreen (positioned at `left: -9999px`) and CSS variables control sizing and scaling.
+- **Manual schedule creation**: Users can create schedules without Twitch via `CreateScheduleDialog.tsx`, which generates `ParsedEvent` objects compatible with both image export and Discord timestamp features.
+- **Utils directory**: Contains `dateFormatting.ts` (timestamp formatting helpers) and `canvasRenderer.ts` (image generation utilities).
 
 ## Patterns and conventions to follow
 
-- Keep UI logic in `src/App.tsx`. It contains most parsing/enrichment, network calls, and state shape. Exported type `ParsedEvent` in `App.tsx` is the canonical event shape used by `ScheduleImage`.
+- Keep UI logic in `src/App.tsx`. It contains most parsing/enrichment, network calls, and state shape. Exported type `ParsedEvent` in `App.tsx` is the canonical event shape used by `ScheduleImage`, `ShareSheet`, and `CreateScheduleDialog`.
 - `ScheduleImage.tsx` exposes two exports:
   - `ScheduleImageTemplate`: a React component that renders the offscreen canvas. It expects props matching `ParsedEvent[]`, sizes, and helper `extractCategory`.
-  - `GenerateScheduleImage`: an async helper that finds `#schedule-image-canvas` and calls `html-to-image` to produce and trigger a PNG download.
-- When changing layout/exports, prefer editing CSS variables in `scheduleImage.css` and the style props set on `#schedule-image-canvas` rather than hardcoding sizes.
+  - `GenerateScheduleImage`: an async helper that finds the schedule canvas element and calls `html-to-image` to produce and trigger a PNG download.
+- `CreateScheduleDialog.tsx` provides a form-based UI for manually creating schedules without Twitch integration. It returns an array of `ParsedEvent` objects.
+- `ShareSheet.tsx` handles Discord timestamp export, formatting events with timezone-aware timestamps.
+- When changing layout/exports, prefer editing CSS variables in `scheduleImage.css` and the style props set on the canvas element rather than hardcoding sizes.
 
 ## Build, run and deploy notes
 
@@ -28,6 +37,8 @@ This is a small single-page React + Vite app (TypeScript) for formatting and exp
 
 - To find parsing logic and timestamp formatting, inspect `src/App.tsx` (search for `formatDiscordTimestamp`, `fetchAndParseCalendar`, and `ParsedEvent`).
 - To change how images are exported or add alternate sizes, edit `src/components/ScheduleImage.tsx` (check `size: {width,height}` usage) and corresponding CSS in `src/components/scheduleImage.css`.
+- To modify manual schedule creation flow, check `src/components/CreateScheduleDialog.tsx` for the form UI and validation logic.
+- For Discord timestamp formatting, see `src/components/ShareSheet.tsx` and `src/utils/dateFormatting.ts`.
 
 ## Small gotchas
 
@@ -39,6 +50,8 @@ This is a small single-page React + Vite app (TypeScript) for formatting and exp
 
 - `src/App.tsx` — overall flow, network calls, ParsedEvent type.
 - `src/components/ScheduleImage.tsx` and `src/components/scheduleImage.css` — image layout and export.
+- `src/components/CreateScheduleDialog.tsx` — manual schedule creation form.
+- `src/components/ShareSheet.tsx` and `src/utils/dateFormatting.ts` — Discord timestamp formatting.
 - `index.html` — global scripts (ical.js) and fonts.
 - `package.json` & `vite.config.ts` — scripts, build base path for GitHub Pages.
 

@@ -18,6 +18,55 @@ body,
   padding: 0 !important;
   box-sizing: border-box;
   overflow-x: hidden;
+  position: relative;
+}
+
+/* Footer Social Links */
+.footer {
+  width: 100%;
+  padding: 24px 16px;
+  background: rgba(36, 36, 36, 0.8);
+  border-top: 1px solid rgba(100, 108, 255, 0.3);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.footer-social-links {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  align-items: center;
+}
+
+.footer-social-link {
+  display: block;
+  transition: transform 0.2s ease;
+}
+
+.footer-social-link:hover {
+  transform: scale(1.1);
+}
+
+.footer-social-icon {
+  height: 48px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  transition: box-shadow 0.2s ease;
+  object-fit: contain;
+}
+
+.footer-social-icon:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.footer-social-icon.discord-svg {
+  width: 48px;
+  color: #5865F2;
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 /* TabPanel wrapper box */
@@ -355,6 +404,14 @@ body,
 @media (max-width: 600px) {
   .container {
     padding: 0 !important;
+  }
+
+  .footer-social-icon {
+    height: 40px;
+  }
+  
+  .footer-social-icon.discord-svg {
+    width: 40px;
   }
 
   .page-wrapper {

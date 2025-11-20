@@ -70,6 +70,7 @@ function App() {
   const [showDuration, setShowDuration] = useState(false);
   const [isCustomSchedule, setIsCustomSchedule] = useState(false);
   const [lightMode, setLightMode] = useState(false);
+  const [profileRingColor, setProfileRingColor] = useState('#9146FF');
 
 
   const imageSize = { width: 1080, height: 1350 };
@@ -672,7 +673,8 @@ const handleReset = () => {
                       showEndDate,
                       showDuration,
                       dateFormat,
-                      lightMode
+                      lightMode,
+                      profileRingColor
                     });
                     if (imageUrl) {
                       setScheduleImageDataUrl(imageUrl);
@@ -789,6 +791,7 @@ const handleReset = () => {
               showDuration={showDuration}
               dateFormat={dateFormat}
               lightMode={lightMode}
+              profileRingColor={profileRingColor}
             />
           )}
           </Box>
@@ -806,7 +809,7 @@ const handleReset = () => {
       <CreateScheduleDialog
         open={createScheduleDialogOpen}
         onClose={() => setCreateScheduleDialogOpen(false)}
-        onSave={(customEvents, channelName, profilePictureUrl) => {
+        onSave={(customEvents, channelName, profilePictureUrl, ringColor) => {
           setEvents(customEvents);
           setIsCustomSchedule(true);
           if (channelName) {
@@ -814,6 +817,9 @@ const handleReset = () => {
           }
           if (profilePictureUrl) {
             setProfileImageUrl(profilePictureUrl);
+          }
+          if (ringColor) {
+            setProfileRingColor(ringColor);
           }
           setCreateScheduleDialogOpen(false);
         }}

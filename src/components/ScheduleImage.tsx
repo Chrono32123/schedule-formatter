@@ -23,10 +23,11 @@ interface Props {
   showDuration?: boolean;
   dateFormat?: string;
   lightMode?: boolean;
+  profileRingColor?: string;
 }
 
 export const GenerateScheduleImage = async (props: Props): Promise<string | null> => {
-  const { size, events, eventCount, twitchUsername, profileImageUrl, extractCategory, showEndDate, showDuration, dateFormat, lightMode } = props;
+  const { size, events, eventCount, twitchUsername, profileImageUrl, extractCategory, showEndDate, showDuration, dateFormat, lightMode, profileRingColor } = props;
 
   try {
     // Use Canvas-based rendering instead of html-to-image
@@ -49,7 +50,8 @@ export const GenerateScheduleImage = async (props: Props): Promise<string | null
       showEndDate,
       showDuration,
       dateFormat,
-      lightMode
+      lightMode,
+      profileRingColor
     );
 
     return dataUrl;

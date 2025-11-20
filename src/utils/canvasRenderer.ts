@@ -244,7 +244,8 @@ export async function renderScheduleToCanvas(
   showEndDate?: boolean,
   showDuration?: boolean,
   dateFormat?: string,
-  lightMode?: boolean
+  lightMode?: boolean,
+  profileRingColor?: string
 ): Promise<string> {
   const { width, height, eventCount, dpi = 1 } = config;
   const fitScale = calculateFitScale(eventCount);
@@ -294,8 +295,9 @@ export async function renderScheduleToCanvas(
       const avatarSize = scaleDimension(LAYOUT.avatarSize, 1);
       const avatarX = headerCenterX - avatarSize / 2;
       const avatarY = headerTopMargin;
-      // Draw avatar with Twitch purple border
-      await drawImage(ctx, profileImageUrl, avatarX, avatarY, avatarSize, avatarSize, 20, colors.accent, 4);
+      // Draw avatar with custom ring color (defaults to Twitch purple if not provided)
+      const ringColor = profileRingColor || colors.accent;
+      await drawImage(ctx, profileImageUrl, avatarX, avatarY, avatarSize, avatarSize, 20, ringColor, 4);
     } catch (err) {
       console.warn('Failed to load profile image', err);
     }
@@ -353,6 +355,80 @@ export async function renderScheduleToCanvas(
   
   // Filter valid events and limit to maximum 7
   const validEvents = events.filter(e => e && e.summary).slice(0, 7);
+
+  // ============================================
+  // SPECIAL LAYOUT FOR SINGLE EVENT
+  // ============================================
+  if (validEvents.length === 1) {
+    const event = validEvents[0];
+    const singleEventScale = 1.8; // Much larger scale for single event
+    
+    // Larger typography for single event
+    const largeTitleSize = TYPOGRAPHY.eventTitleSize * singleEventScale;
+    const largeMetaSize = TYPOGRAPHY.eventMetaSize * singleEventScale;
+    const largeImageWidth = LAYOUT.eventImageWidth * 2.2;
+    const largeImageHeight = LAYOUT.eventImageHeight * 2.2;
+    
+    // Center the content vertically in available space
+    const singleEventStartY = currentY + 80;
+    let singleY = singleEventStartY;
+    
+    // Draw large event image centered at top if available
+    if (event.categoryImage) {
+      try {
+        const imageX = (width - largeImageWidth) / 2;
+        await drawImage(ctx, event.categoryImage, imageX, singleY, largeImageWidth, largeImageHeight, 16);
+        singleY += largeImageHeight + 50;
+      } catch (err) {
+        console.warn('Failed to load event image', err);
+      }
+    }
+    
+    // Draw event title - centered and large
+    ctx.font = `bold ${largeTitleSize}px 'Roboto', sans-serif`;
+    ctx.fillStyle = colors.text;
+    ctx.textAlign = 'center';
+    
+    const titleWidth = width - 240;
+    const titleLines = wrapText(ctx, event.summary, titleWidth);
+    for (const line of titleLines) {
+      ctx.fillText(line, headerCenterX, singleY);
+      singleY += largeTitleSize * 1.3;
+    }
+    
+    singleY += 30; // Extra spacing before metadata
+    
+    // Draw category
+    ctx.font = `bold ${largeMetaSize}px 'Roboto', sans-serif`;
+    ctx.fillStyle = colors.accent;
+    const category = extractCategory(event.description) || 'Stream';
+    ctx.fillText(`${category}`, headerCenterX, singleY);
+    singleY += largeMetaSize * 1.5;
+    
+    // Draw start time
+    ctx.font = `${largeMetaSize}px 'Roboto', sans-serif`;
+    ctx.fillStyle = colors.subtle;
+    const dateFormatPattern = dateFormat || 'MM-DD-YYYY hh:mm A';
+    const { startDisplay, endDisplay } = formatStartEndDates(event.start, event.end, dateFormatPattern);
+    
+    if (!showEndDate) {
+      ctx.fillText(startDisplay, headerCenterX, singleY);
+      singleY += largeMetaSize * 1.4;
+    } else if (endDisplay) {
+      ctx.fillText(`${startDisplay}`, headerCenterX, singleY);
+      singleY += largeMetaSize * 1.4;
+      ctx.fillText(`to ${endDisplay}`, headerCenterX, singleY);
+      singleY += largeMetaSize * 1.4;
+    }
+    
+    // Draw duration if enabled
+    if (showDuration && event.duration) {
+      ctx.fillText(`${event.duration}`, headerCenterX, singleY);
+    }
+    
+    ctx.textAlign = 'left'; // Reset alignment
+    
+  } else {
 
   // Calculate total height needed for all events
   let totalEventHeight = 0;
@@ -436,6 +512,8 @@ export async function renderScheduleToCanvas(
     const eventHeight = Math.max(titleHeight + metadataHeight, eventImageHeight) + scaleDimension(16, fitScale);
     currentY += eventHeight;
   }
+  
+  } // End of else block for multiple events
 
   // ============================================
   // FOOTER

@@ -33,7 +33,7 @@ interface FormErrors {
 interface CreateScheduleDialogProps {
   open: boolean;
   onClose: () => void;
-  onSave: (events: ParsedEvent[], channelName?: string, profilePictureUrl?: string | null) => void;
+  onSave: (events: ParsedEvent[], channelName?: string, profilePictureUrl?: string | null, profileRingColor?: string) => void;
   searchCategories: (query: string) => Promise<Array<{ id: string; name: string }>>;
   fetchCategoryImages: (events: ParsedEvent[]) => Promise<ParsedEvent[]>;
   initialEvents?: ParsedEvent[];
@@ -249,7 +249,7 @@ export const CreateScheduleDialog: React.FC<CreateScheduleDialogProps> = ({
     }
     
     const enrichedEvents = await fetchCategoryImages(events);
-    onSave(enrichedEvents, channelName || undefined, profilePictureUrl);
+    onSave(enrichedEvents, channelName || undefined, profilePictureUrl, profileRingColor);
     setEvents([]);
     setFormData({
       title: '',

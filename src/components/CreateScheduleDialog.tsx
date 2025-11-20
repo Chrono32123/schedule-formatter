@@ -66,6 +66,7 @@ export const CreateScheduleDialog: React.FC<CreateScheduleDialogProps> = ({
   const [categoryOptions, setCategoryOptions] = useState<Array<{ id: string; name: string }>>([]);
   const [categoryLoading, setCategoryLoading] = useState(false);
   const [editingEventIndex, setEditingEventIndex] = useState<number | null>(null);
+  const [editingSchedule, setEditingSchedule] = useState<boolean>(false);
 
   // Initialize state when dialog opens with existing events
   React.useEffect(() => {
@@ -74,6 +75,7 @@ export const CreateScheduleDialog: React.FC<CreateScheduleDialogProps> = ({
         setEvents(initialEvents);
         setChannelName(initialChannelName || '');
         setProfilePictureUrl(initialProfilePictureUrl || null);
+        setEditingSchedule(true);
       } else {
         setEvents([]);
         setChannelName('');
@@ -93,10 +95,30 @@ export const CreateScheduleDialog: React.FC<CreateScheduleDialogProps> = ({
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    
+    // Special handling for start date - auto-set end date to 1 hour later if end date is empty
+    if (name === 'startDateTime' && value && !formData.endDateTime) {
+      const startMoment = moment(value);
+      if (startMoment.isValid()) {
+        const endMoment = startMoment.clone().add(1, 'hour');
+        setFormData((prev) => ({
+          ...prev,
+          [name]: value,
+          endDateTime: endMoment.format('YYYY-MM-DDTHH:mm'),
+        }));
+      } else {
+        setFormData((prev) => ({
+          ...prev,
+          [name]: value,
+        }));
+      }
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: value,
+      }));
+    }
+    
     // Clear error for this field when user starts typing
     if (errors[name as keyof FormErrors]) {
       setErrors((prev) => ({
@@ -208,16 +230,33 @@ export const CreateScheduleDialog: React.FC<CreateScheduleDialogProps> = ({
   const handleEditEvent = (index: number) => {
     const event = events[index];
     if (event) {
-      // Convert the formatted date back to datetime-local format
-      // Format is "MMM D, YYYY [at] h:mm A", need to convert to ISO-like format for datetime-local
-      const dateStr = event.start;
-      const dateObj = moment(dateStr, 'MMM D, YYYY [at] h:mm A');
-      const endObj = moment(event.end, 'MMM D, YYYY [at] h:mm A');
+      // Try to parse dates - support multiple formats (custom schedule format and Twitch format)
+      const customFormat = 'MMM D, YYYY [at] h:mm A';
+      const twitchFormat = 'MM-DD-YYYY hh:mm A';
+      
+      // Try custom format first, then Twitch format, then flexible parsing
+      let dateObj = moment(event.start, customFormat, true);
+      if (!dateObj.isValid()) {
+        dateObj = moment(event.start, twitchFormat, true);
+      }
+      if (!dateObj.isValid()) {
+        // Fallback to flexible parsing
+        dateObj = moment(event.start);
+      }
+      
+      let endObj = moment(event.end, customFormat, true);
+      if (!endObj.isValid()) {
+        endObj = moment(event.end, twitchFormat, true);
+      }
+      if (!endObj.isValid()) {
+        // Fallback to flexible parsing
+        endObj = moment(event.end);
+      }
       
       setFormData({
         title: event.summary,
-        startDateTime: dateObj.format('YYYY-MM-DDTHH:mm'),
-        endDateTime: endObj.format('YYYY-MM-DDTHH:mm'),
+        startDateTime: dateObj.isValid() ? dateObj.format('YYYY-MM-DDTHH:mm') : '',
+        endDateTime: endObj.isValid() ? endObj.format('YYYY-MM-DDTHH:mm') : '',
         category: event.description.slice(0, -1), // Remove the zero-width space
       });
       setEditingEventIndex(index);
@@ -813,7 +852,7 @@ export const CreateScheduleDialog: React.FC<CreateScheduleDialogProps> = ({
             },
           }}
         >
-          Create Schedule
+          {editingSchedule ? 'Update Schedule' : 'Create Schedule'}
         </Button>
       </DialogActions>
     </Dialog>

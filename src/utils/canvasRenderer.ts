@@ -243,10 +243,26 @@ export async function renderScheduleToCanvas(
   extractCategory: (desc: string) => string | null,
   showEndDate?: boolean,
   showDuration?: boolean,
-  dateFormat?: string
+  dateFormat?: string,
+  lightMode?: boolean
 ): Promise<string> {
   const { width, height, eventCount, dpi = 1 } = config;
   const fitScale = calculateFitScale(eventCount);
+
+  // Color palette - switch based on light/dark mode
+  const colors = lightMode ? {
+    background: '#f5f5f5',
+    text: '#2a2a2a',
+    subtle: '#4a4a4a',
+    accent: '#9146FF',
+    border: '#d0d0d0',
+  } : {
+    background: '#1a1a1a',
+    text: '#ffffff',
+    subtle: '#cccccc',
+    accent: '#9146FF',
+    border: '#555555',
+  };
 
   // Create canvas element
   const canvas = document.createElement('canvas');
@@ -261,7 +277,7 @@ export async function renderScheduleToCanvas(
   ctx.imageSmoothingQuality = 'high';
 
   // Draw background
-  ctx.fillStyle = COLORS.background;
+  ctx.fillStyle = colors.background;
   ctx.fillRect(0, 0, width, height);
 
   let currentY = 0;
@@ -279,7 +295,7 @@ export async function renderScheduleToCanvas(
       const avatarX = headerCenterX - avatarSize / 2;
       const avatarY = headerTopMargin;
       // Draw avatar with Twitch purple border
-      await drawImage(ctx, profileImageUrl, avatarX, avatarY, avatarSize, avatarSize, 20, COLORS.accent, 4);
+      await drawImage(ctx, profileImageUrl, avatarX, avatarY, avatarSize, avatarSize, 20, colors.accent, 4);
     } catch (err) {
       console.warn('Failed to load profile image', err);
     }
@@ -288,7 +304,7 @@ export async function renderScheduleToCanvas(
   // Title text (centered)
   const titleSize = scaleDimension(TYPOGRAPHY.titleSize, fitScale);
   ctx.font = `bold ${titleSize}px 'Roboto', sans-serif`;
-  ctx.fillStyle = COLORS.text;
+  ctx.fillStyle = colors.text;
   ctx.textBaseline = 'top';
   ctx.textAlign = 'center';
 
@@ -299,7 +315,7 @@ export async function renderScheduleToCanvas(
   if (events.length > 0 && events[0].start) {
     const subtitleSize = scaleDimension(TYPOGRAPHY.subtitleSize, fitScale);
     ctx.font = `bold ${subtitleSize}px 'Roboto', sans-serif`;
-    ctx.fillStyle = COLORS.subtle;
+    ctx.fillStyle = colors.subtle;
 
     // Only show date range if there's more than one event
     if (events.length > 1) {
@@ -372,7 +388,7 @@ export async function renderScheduleToCanvas(
 
     // Draw event title
     ctx.font = `bold ${eventTitleSize}px 'Roboto', sans-serif`;
-    ctx.fillStyle = COLORS.text;
+    ctx.fillStyle = colors.text;
 
     const titleLines = wrapText(ctx, event.summary, eventDetailsWidth);
     for (const line of titleLines) {
@@ -382,7 +398,7 @@ export async function renderScheduleToCanvas(
 
     // Draw event metadata (category + start time)
     ctx.font = `${eventMetaSize}px 'Roboto', sans-serif`;
-    ctx.fillStyle = COLORS.subtle;
+    ctx.fillStyle = colors.subtle;
 
     const category = extractCategory(event.description) || 'Stream';
     ctx.fillText(`Playing: ${category}`, eventLeft, eventContentY);
@@ -426,7 +442,7 @@ export async function renderScheduleToCanvas(
   // ============================================
   const footerSize = scaleDimension(TYPOGRAPHY.footerSize, fitScale) * 1.5;
   ctx.font = `${footerSize}px 'Roboto', sans-serif`;
-  ctx.fillStyle = COLORS.subtle;
+  ctx.fillStyle = colors.subtle;
   ctx.globalAlpha = 0.85;
   ctx.textAlign = 'center';
 

@@ -22,10 +22,11 @@ interface Props {
   showEndDate?: boolean;
   showDuration?: boolean;
   dateFormat?: string;
+  lightMode?: boolean;
 }
 
 export const GenerateScheduleImage = async (props: Props): Promise<string | null> => {
-  const { size, events, eventCount, twitchUsername, profileImageUrl, extractCategory, showEndDate, showDuration, dateFormat } = props;
+  const { size, events, eventCount, twitchUsername, profileImageUrl, extractCategory, showEndDate, showDuration, dateFormat, lightMode } = props;
 
   try {
     // Use Canvas-based rendering instead of html-to-image
@@ -47,7 +48,8 @@ export const GenerateScheduleImage = async (props: Props): Promise<string | null
       extractCategory,
       showEndDate,
       showDuration,
-      dateFormat
+      dateFormat,
+      lightMode
     );
 
     return dataUrl;
@@ -68,6 +70,7 @@ export const ScheduleImageTemplate: React.FC<Props> = ({
   showEndDate,
   showDuration,
   dateFormat,
+  lightMode = false,
 }) => {
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const headerRef = useRef<HTMLDivElement | null>(null);
@@ -108,7 +111,7 @@ export const ScheduleImageTemplate: React.FC<Props> = ({
       {/* Canvas = target size, wrapper = base layout */}
       <div
         id="schedule-image-canvas"
-        className="schedule-image-root"
+        className={`schedule-image-root ${lightMode ? 'light-mode' : ''}`}
         style={{
           '--target-width': `${size.width}px`,
           '--target-height': `${size.height}px`,

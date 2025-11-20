@@ -69,6 +69,7 @@ function App() {
   const [showEndDate, setShowEndDate] = useState(false);
   const [showDuration, setShowDuration] = useState(false);
   const [isCustomSchedule, setIsCustomSchedule] = useState(false);
+  const [lightMode, setLightMode] = useState(false);
 
 
   const imageSize = { width: 1080, height: 1350 };
@@ -574,6 +575,16 @@ const handleReset = () => {
             }
             label="Show Duration"
           />
+          <FormControlLabel
+            control={
+              <Switch
+                checked={lightMode}
+                onChange={(e) => setLightMode(e.target.checked)}
+                className="preview-switch"
+              />
+            }
+            label="Light Mode"
+          />
         </Box>
         <Box className="button-container">
           <Button
@@ -660,7 +671,8 @@ const handleReset = () => {
                       size: imageSize,
                       showEndDate,
                       showDuration,
-                      dateFormat
+                      dateFormat,
+                      lightMode
                     });
                     if (imageUrl) {
                       setScheduleImageDataUrl(imageUrl);
@@ -776,6 +788,7 @@ const handleReset = () => {
               showEndDate={showEndDate}
               showDuration={showDuration}
               dateFormat={dateFormat}
+              lightMode={lightMode}
             />
           )}
           </Box>

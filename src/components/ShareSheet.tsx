@@ -33,7 +33,12 @@ export const ShareSheet: React.FC<ShareSheetProps> = ({
   title,
 }) => {
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string>('');
-  const [copyImgButtonText, setCopyImgButtonText] = useState('Copy Image to Clipboard');
+  const [copyImgButtonText, setCopyImgButtonText] = useState('Copy Image');
+  
+  // Detect if we're on iOS or if Web Share API is available
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  const hasShareAPI = !!navigator.share;
+  const buttonLabel = (isIOS || hasShareAPI) && !navigator.clipboard?.write ? 'Share Image' : 'Copy Image';
 
   const downloadImage = () => {
     const link = document.createElement('a');
@@ -47,17 +52,66 @@ export const ShareSheet: React.FC<ShareSheetProps> = ({
       // Convert data URL to blob
       const response = await fetch(imageDataUrl);
       const blob = await response.blob();
+      const file = new File([blob], filename, { type: 'image/png' });
       
-      // Copy image blob to clipboard
-      await navigator.clipboard.write([
-        new ClipboardItem({ 'image/png': blob })
-      ]).then(() => {
-                setCopyImgButtonText('Copied!');
-        setTimeout(() => setCopyImgButtonText('Copy to Clipboard!') ,2000);
-      });
+      // Check if we're in a secure context (HTTPS or localhost)
+      const isSecureContext = window.isSecureContext;
+      
+      // On mobile/iOS, prefer Web Share API first as it's more reliable
+      // But it only works in secure contexts (HTTPS or localhost)
+      const canShare = isSecureContext && navigator.canShare ? navigator.canShare({ files: [file] }) : false;
+      const hasShareAPI = typeof navigator.share === 'function';
+      const isShareSupported = hasShareAPI && canShare;
+      
+      if (isShareSupported) {
+        try {
+          await navigator.share({
+            files: [file],
+            title: title,
+          });
+          setCopyImgButtonText('Shared!');
+          setTimeout(() => setCopyImgButtonText(buttonLabel), 2000);
+          return;
+        } catch (shareErr: any) {
+          // User cancelled the share, don't show an error
+          if (shareErr.name === 'AbortError') {
+            return;
+          }
+          console.warn('Web Share API failed, trying Clipboard API:', shareErr);
+        }
+      }
+      
+      // Try Clipboard API as fallback (works on desktop in secure contexts)
+      if (isSecureContext && navigator.clipboard && ClipboardItem) {
+        try {
+          await navigator.clipboard.write([
+            new ClipboardItem({ 'image/png': blob })
+          ]);
+          setCopyImgButtonText('Copied!');
+          setTimeout(() => setCopyImgButtonText(buttonLabel), 2000);
+          return;
+        } catch (clipboardErr) {
+          console.warn('Clipboard API failed:', clipboardErr);
+        }
+      }
+      
+      // For non-secure contexts or when APIs aren't available
+      // Automatically download with helpful feedback
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      
+      if (!isSecureContext && (isIOS || hasShareAPI)) {
+        // Show a one-time helpful message for development
+        console.info('Share/Copy features require HTTPS. Downloading image instead. This will work properly when deployed.');
+      }
+      
+      setCopyImgButtonText('Downloading...');
+      downloadImage();
+      setTimeout(() => setCopyImgButtonText(buttonLabel), 2000);
+      
     } catch (err) {
-      console.error('Failed to copy image:', err);
-      alert('Failed to copy image to clipboard');
+      console.error('Failed to copy/share image:', err);
+      // Silently fall back to download
+      downloadImage();
     }
   };
 
@@ -81,7 +135,7 @@ export const ShareSheet: React.FC<ShareSheetProps> = ({
         {/* Share Buttons */}
         <Box className="share-buttons-container">
           <Typography variant="subtitle2" className="share-section-title">
-            Download or Copy Image:
+            Download or Share Image:
           </Typography>
 
           <Box className="other-buttons">
@@ -96,7 +150,7 @@ export const ShareSheet: React.FC<ShareSheetProps> = ({
               </Button>
             </Tooltip>
 
-            <Tooltip title="Copy Image to Clipboard">
+            <Tooltip title={buttonLabel}>
               <Button
                 variant="outlined"
                 className="other-button"

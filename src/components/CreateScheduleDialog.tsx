@@ -7,15 +7,8 @@ import {
   DialogActions,
   Button,
   TextField,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   Box,
   IconButton,
-  Paper,
   Typography,
   Autocomplete,
 } from '@mui/material';
@@ -67,6 +60,7 @@ export const CreateScheduleDialog: React.FC<CreateScheduleDialogProps> = ({
 
   const [channelName, setChannelName] = useState('');
   const [profilePictureUrl, setProfilePictureUrl] = useState<string | null>(null);
+  const [profileRingColor, setProfileRingColor] = useState('#9146FF');
   const [events, setEvents] = useState<ParsedEvent[]>([]);
   const [errors, setErrors] = useState<FormErrors>({});
   const [categoryOptions, setCategoryOptions] = useState<Array<{ id: string; name: string }>>([]);
@@ -85,6 +79,7 @@ export const CreateScheduleDialog: React.FC<CreateScheduleDialogProps> = ({
         setChannelName('');
         setProfilePictureUrl(null);
       }
+      setProfileRingColor('#9146FF');
       setFormData({
         title: '',
         startDateTime: '',
@@ -298,7 +293,7 @@ export const CreateScheduleDialog: React.FC<CreateScheduleDialogProps> = ({
           {/* Channel Name and Profile Picture - Optional Section */}
           <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start' }}>
             <TextField
-              label="Channel/User Name (Optional)"
+              label="Channel Name"
               value={channelName}
               onChange={(e) => setChannelName(e.target.value)}
               fullWidth
@@ -314,9 +309,8 @@ export const CreateScheduleDialog: React.FC<CreateScheduleDialogProps> = ({
                 },
                 '& .MuiInputLabel-root': {
                   color: '#ffffff',
-                  overflow: 'visible',
                   '&.MuiInputLabel-shrink': {
-                    transform: 'translate(14px, -3px) scale(0.75)',
+                    transform: 'translate(14px, -9px) scale(0.75)',
                   },
                 },
                 '& .MuiOutlinedInput-input': {
@@ -381,7 +375,7 @@ export const CreateScheduleDialog: React.FC<CreateScheduleDialogProps> = ({
                           width: 80,
                           height: 80,
                           borderRadius: '50%',
-                          border: '3px solid #9146FF',
+                          border: `3px solid ${profileRingColor}`,
                           objectFit: 'cover',
                         }}
                       />
@@ -425,6 +419,69 @@ export const CreateScheduleDialog: React.FC<CreateScheduleDialogProps> = ({
                 )}
               </Box>
             </Box>
+          </Box>
+
+          {/* Profile Ring Color Picker */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Box
+              sx={{
+                position: 'relative',
+                width: '40px',
+                height: '40px',
+                borderRadius: '8px',
+                border: '2px solid #646cff',
+                overflow: 'hidden',
+                cursor: 'pointer',
+                transition: 'border-color 0.2s',
+                '&:hover': {
+                  borderColor: '#9146FF',
+                },
+              }}
+            >
+              <input
+                type="color"
+                value={profileRingColor}
+                onChange={(e) => setProfileRingColor(e.target.value)}
+                style={{
+                  position: 'absolute',
+                  width: '100%',
+                  height: '100%',
+                  border: 'none',
+                  cursor: 'pointer',
+                  margin: 0,
+                  padding: 0,
+                }}
+              />
+            </Box>
+            <TextField
+              label="Ring Color"
+              value={profileRingColor}
+              onChange={(e) => setProfileRingColor(e.target.value)}
+              size="small"
+              placeholder="#9146FF"
+              fullWidth
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  backgroundColor: '#242424',
+                  '& fieldset': {
+                    borderColor: '#646cff',
+                  },
+                  '&:hover fieldset': {
+                    borderColor: '#9146FF',
+                  },
+                },
+                '& .MuiInputLabel-root': {
+                  color: '#ffffff',
+                  '&.MuiInputLabel-shrink': {
+                    transform: 'translate(14px, -9px) scale(0.75)',
+                  },
+                },
+                '& .MuiOutlinedInput-input': {
+                  color: '#ffffff',
+                  fontSize: '0.875rem',
+                },
+              }}
+            />
           </Box>
 
           {/* Input Form - Event Title */}
@@ -642,90 +699,87 @@ export const CreateScheduleDialog: React.FC<CreateScheduleDialogProps> = ({
             )}
           </Box>
 
-          {/* Events Table */}
+          {/* Events List */}
           {events.length > 0 && (
-            <TableContainer
-              component={Paper}
-              sx={{
-                backgroundColor: '#242424',
-                mt: 1.5,
-              }}
-            >
-              <Table size="small">
-                <TableHead>
-                  <TableRow sx={{ backgroundColor: '#1a1a1a' }}>
-                    <TableCell sx={{ color: '#ffffff', fontWeight: 'bold', p: 0.75, fontSize: '0.85rem' }}>
-                      Title
-                    </TableCell>
-                    <TableCell sx={{ color: '#ffffff', fontWeight: 'bold', p: 0.75, fontSize: '0.85rem' }}>
-                      Start
-                    </TableCell>
-                    <TableCell sx={{ color: '#ffffff', fontWeight: 'bold', p: 0.75, fontSize: '0.85rem' }}>
-                      End
-                    </TableCell>
-                    <TableCell sx={{ color: '#ffffff', fontWeight: 'bold', p: 0.75, fontSize: '0.85rem' }}>
-                      Category
-                    </TableCell>
-                    <TableCell sx={{ color: '#ffffff', fontWeight: 'bold', p: 0.75, fontSize: '0.85rem' }}>
-                      Duration
-                    </TableCell>
-                    <TableCell align="center" sx={{ color: '#ffffff', fontWeight: 'bold', p: 0.5, fontSize: '0.85rem' }}>
-                      Action
-                    </TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {events.map((event, index) => {
-                    // Abbreviate dates: "Nov 18, 2025 at 3:00 PM" -> "11/18 3:00P"
-                    const abbreviateDate = (dateStr: string | null | undefined) => {
-                      if (!dateStr) return '-';
-                      const date = moment(dateStr, 'MMM D, YYYY [at] h:mm A');
-                      return date.format('M/D h:mmA').toLowerCase();
-                    };
-                    return (
-                    <TableRow key={index} sx={{ '&:hover': { backgroundColor: '#2a2a2a' }, height: '40px' }}>
-                      <TableCell sx={{ color: '#ffffff', p: 0.75, fontSize: '0.85rem', maxWidth: '80px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{event.summary}</TableCell>
-                      <TableCell sx={{ color: '#ffffff', p: 0.75, fontSize: '0.85rem', minWidth: '80px' }}>{abbreviateDate(event.start)}</TableCell>
-                      <TableCell sx={{ color: '#ffffff', p: 0.75, fontSize: '0.85rem', minWidth: '80px' }}>{abbreviateDate(event.end)}</TableCell>
-                      <TableCell sx={{ color: '#ffffff', p: 0.75, fontSize: '0.85rem', maxWidth: '70px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{event.description}</TableCell>
-                      <TableCell sx={{ color: '#ffffff', p: 0.75, fontSize: '0.85rem', minWidth: '60px' }}>{event.duration}</TableCell>
-                      <TableCell align="center" sx={{ p: 0.5 }}>
-                        <IconButton
-                          size="small"
-                          onClick={() => handleEditEvent(index)}
-                          sx={{
-                            color: '#9146FF',
-                            '&:hover': {
-                              backgroundColor: 'rgba(145, 70, 255, 0.1)',
-                            },
-                            mr: 0.25,
-                            padding: '4px',
-                          }}
-                          title="Edit event"
-                        >
-                          ✏️
-                        </IconButton>
-                        <IconButton
-                          size="small"
-                          onClick={() => handleDeleteEvent(index)}
-                          sx={{
-                            color: '#ff6b6b',
-                            '&:hover': {
-                              backgroundColor: 'rgba(255, 107, 107, 0.1)',
-                            },
-                            padding: '4px',
-                          }}
-                          title="Delete event"
-                        >
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
-                      </TableCell>
-                    </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </TableContainer>
+            <Box sx={{ mt: 2 }}>
+              <Typography variant="h6" sx={{ color: '#ffffff', mb: 1, fontSize: '1rem', fontWeight: 'bold' }}>
+                Events ({events.length})
+              </Typography>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                {events.map((event, index) => (
+                  <Box
+                    key={index}
+                    sx={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      p: 1.5,
+                      backgroundColor: '#242424',
+                      borderRadius: '8px',
+                      border: '1px solid #646cff',
+                      '&:hover': {
+                        backgroundColor: '#2a2a2a',
+                        borderColor: '#9146FF',
+                      },
+                    }}
+                  >
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography
+                        sx={{
+                          color: '#ffffff',
+                          fontWeight: 'bold',
+                          fontSize: '0.95rem',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {event.summary}
+                      </Typography>
+                      <Typography
+                        sx={{
+                          color: '#9146FF',
+                          fontSize: '0.85rem',
+                          mt: 0.25,
+                        }}
+                      >
+                        {moment(event.start, 'MMM D, YYYY [at] h:mm A').format('MMM D, YYYY [at] h:mm A')}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', gap: 0.5, ml: 1 }}>
+                      <IconButton
+                        size="small"
+                        onClick={() => handleEditEvent(index)}
+                        sx={{
+                          color: '#9146FF',
+                          '&:hover': {
+                            backgroundColor: 'rgba(145, 70, 255, 0.1)',
+                          },
+                          padding: '6px',
+                        }}
+                        title="Edit event"
+                      >
+                        ✏️
+                      </IconButton>
+                      <IconButton
+                        size="small"
+                        onClick={() => handleDeleteEvent(index)}
+                        sx={{
+                          color: '#ff6b6b',
+                          '&:hover': {
+                            backgroundColor: 'rgba(255, 107, 107, 0.1)',
+                          },
+                          padding: '6px',
+                        }}
+                        title="Delete event"
+                      >
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </Box>
+                  </Box>
+                ))}
+              </Box>
+            </Box>
           )}
         </Box>
       </DialogContent>

@@ -1,0 +1,46 @@
+/* Slide-in page animations */
+.page-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow-y: auto;
+}
+
+.page-container.main-page {
+  z-index: 1;
+  transform: translateX(0);
+}
+
+.page-container.main-page.shifted {
+  transform: translateX(-20%);
+}
+
+.page-container.editor-page {
+  z-index: 1300;
+  transform: translateX(100%);
+}
+
+.page-container.editor-page.visible {
+  transform: translateX(0);
+}
+
+/* Overlay for main page when editor is open */
+.page-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0);
+  pointer-events: none;
+  transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 1299;
+}
+
+.page-overlay.visible {
+  background-color: rgba(0, 0, 0, 0.5);
+  pointer-events: auto;
+}

@@ -3,12 +3,15 @@ import moment, { max } from 'moment';
 import { Typography, Container, TextField, Select, Button, Box, MenuItem, Tabs, Tab, InputLabel, Switch, FormControlLabel, FormControl } from '@mui/material';
 import axios from 'axios';
 import './App.css';
+import './components/scheduleEditorPage.css';
 import Footer from './Footer';
 import { GenerateScheduleImage, ScheduleImageTemplate } from './components/ScheduleImage';
 import { ShareSheet } from './components/ShareSheet';
-import { CreateScheduleDialog } from './components/CreateScheduleDialog';
+import { ScheduleEditorPage } from './components/ScheduleEditorPage';
 import logoSvg from './assets/stream_share_logo.svg';
 import { formatStartEndDates } from './utils/dateFormatting';
+import * as TwitchAuth from './utils/twitchAuth';
+import * as TwitchSchedule from './utils/twitchSchedule';
 
 
 export interface ParsedEvent {
@@ -21,6 +24,8 @@ export interface ParsedEvent {
   categoryImage?: string | null;
   unixTimestamp: number;
   endUnixTimestamp?: number | null;
+  twitchSegmentId?: string; // Track Twitch schedule segment ID for updates/deletes
+  isRecurring?: boolean; // Whether this event is recurring
 }
 
 // Custom TabPanel component
@@ -57,6 +62,7 @@ function App() {
   const [tabValue, setTabValue] = useState(0);
   const clientId = import.meta.env.VITE_TWITCH_CLIENT_ID || '';
   const clientSecret = import.meta.env.VITE_TWITCH_CLIENT_SECRET || '';
+  const redirectUri = import.meta.env.VITE_TWITCH_REDIRECT_URI || `${window.location.origin}${window.location.pathname}`;
   const [accessToken, setAccessToken] = useState<string>('');
   const [tokenExpiry, setTokenExpiry] = useState<number>(0);
   const [copyButtonText, setCopyButtonText] = useState('Copy to Clipboard');
@@ -64,7 +70,7 @@ function App() {
   const [previewMode, setPreviewMode] = useState(false);
   const [profileImageUrl, setProfileImageUrl] = useState<string>('');
   const [shareSheetOpen, setShareSheetOpen] = useState(false);
-  const [createScheduleDialogOpen, setCreateScheduleDialogOpen] = useState(false);
+  const [scheduleEditorOpen, setScheduleEditorOpen] = useState(false);
   const [scheduleImageDataUrl, setScheduleImageDataUrl] = useState<string>('');
   const [showEndDate, setShowEndDate] = useState(false);
   const [showDuration, setShowDuration] = useState(false);
@@ -72,11 +78,298 @@ function App() {
   const [lightMode, setLightMode] = useState(false);
   const [profileRingColor, setProfileRingColor] = useState('#9146FF');
 
+  // User authentication state
+  const [userToken, setUserToken] = useState<TwitchAuth.TwitchUserToken | null>(null);
+  const [userData, setUserData] = useState<TwitchAuth.TwitchUserData | null>(null);
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
+
 
   const imageSize = { width: 1080, height: 1350 };
   const maxEvents = 7;
   const eventsForImage = events.slice(0, maxEvents);
   const eventCount = eventsForImage.length;
+
+  // Handle Twitch login
+  const handleTwitchLogin = () => {
+    if (!clientId) {
+      setError('Twitch Client ID not configured');
+      return;
+    }
+    
+    console.log('Starting Twitch login with redirect URI:', redirectUri);
+    // Request schedule management permission to allow publishing custom schedules to Twitch
+    const scopes: string[] = ['channel:manage:schedule'];
+    const authUrl = TwitchAuth.buildAuthUrl(clientId, redirectUri, scopes);
+    console.log('Redirecting to:', authUrl);
+    window.location.href = authUrl;
+  };
+
+  // Handle logout
+  const handleLogout = async () => {
+    if (userToken && clientId) {
+      await TwitchAuth.revokeToken(userToken.accessToken, clientId);
+    }
+    TwitchAuth.clearUserToken();
+    setUserToken(null);
+    setUserData(null);
+    setTwitchUsername('');
+    setProfileImageUrl('');
+  };
+
+  // Load my schedule (authenticated user's schedule)
+  const loadMySchedule = async () => {
+    if (!userData) return;
+    
+    setTwitchUsername(userData.login);
+    setProfileImageUrl(userData.profileImageUrl);
+    await fetchAndParseCalendar(true, userData.id);
+  };
+
+  // Publish events to Twitch schedule (with intelligent sync - update/create/delete)
+  const publishToTwitch = async (eventsToPublish: ParsedEvent[]): Promise<{ success: boolean; message: string }> => {
+    if (!userData || !userToken) {
+      return { success: false, message: 'You must be logged in to publish to Twitch' };
+    }
+
+    if (!userToken.scopes.includes('channel:manage:schedule')) {
+      return { success: false, message: 'Missing schedule management permission. Please log out and log in again.' };
+    }
+
+    try {
+      setLoading(true);
+      
+      // Fetch existing schedule from Twitch
+      const existingSegments = await TwitchSchedule.fetchScheduleSegments(userData.id, userToken.accessToken, clientId);
+      
+      if (!existingSegments) {
+        setLoading(false);
+        return { success: false, message: 'Failed to fetch existing schedule from Twitch' };
+      }
+      
+      let createdCount = 0;
+      let updatedCount = 0;
+      let deletedCount = 0;
+      let failCount = 0;
+
+      // Track which existing segments we've matched
+      const matchedSegmentIds = new Set<string>();
+
+      // Process each event to publish
+      for (const event of eventsToPublish) {
+        try {
+          // Extract category from description
+          const categoryName = extractCategory(event.description);
+          let categoryId: string | undefined;
+
+          // Get category ID if we have a category name
+          if (categoryName && clientId) {
+            categoryId = await TwitchSchedule.getCategoryIdByName(categoryName, userToken.accessToken, clientId) || undefined;
+          }
+
+          // Calculate duration in minutes
+          const startMoment = moment.unix(event.unixTimestamp);
+          const endMoment = event.endUnixTimestamp ? moment.unix(event.endUnixTimestamp) : startMoment.clone().add(2, 'hours');
+          const durationMinutes = endMoment.diff(startMoment, 'minutes');
+
+          // Check if this event already exists on Twitch
+          let matchingSegment = null;
+          
+          // First try to match by twitchSegmentId if we have one
+          if (event.twitchSegmentId) {
+            matchingSegment = existingSegments.find(seg => seg.id === event.twitchSegmentId);
+          }
+          
+          // If no ID match, try matching by start time and title (within 5 minute window)
+          if (!matchingSegment) {
+            matchingSegment = existingSegments.find(seg => {
+              const segStart = moment(seg.start_time);
+              const timeDiff = Math.abs(segStart.diff(startMoment, 'minutes'));
+              return timeDiff <= 5 && seg.title === event.summary;
+            });
+          }
+
+          if (matchingSegment) {
+            // Update existing segment
+            matchedSegmentIds.add(matchingSegment.id);
+            
+            const result = await TwitchSchedule.updateScheduleSegment(
+              userData.id,
+              matchingSegment.id,
+              {
+                startTime: startMoment.toISOString(),
+                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                duration: durationMinutes,
+                title: event.summary,
+                categoryId: categoryId,
+                isRecurring: event.isRecurring || false,
+              },
+              userToken.accessToken,
+              clientId
+            );
+
+            if (result) {
+              updatedCount++;
+            } else {
+              failCount++;
+            }
+          } else {
+            // Create new segment
+            const result = await TwitchSchedule.createScheduleSegment(
+              {
+                broadcasterId: userData.id,
+                startTime: startMoment.toISOString(),
+                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                duration: durationMinutes,
+                title: event.summary,
+                categoryId: categoryId,
+                isRecurring: event.isRecurring || false,
+              },
+              userToken.accessToken,
+              clientId
+            );
+
+            if (result) {
+              createdCount++;
+            } else {
+              failCount++;
+            }
+          }
+        } catch (error) {
+          console.error('Error processing event:', event.summary, error);
+          failCount++;
+        }
+      }
+
+      // Delete segments that weren't matched (they've been removed from the custom schedule)
+      for (const segment of existingSegments) {
+        if (!matchedSegmentIds.has(segment.id)) {
+          try {
+            const result = await TwitchSchedule.deleteScheduleSegment(
+              userData.id,
+              segment.id,
+              userToken.accessToken,
+              clientId
+            );
+
+            if (result) {
+              deletedCount++;
+            } else {
+              failCount++;
+            }
+          } catch (error) {
+            console.error('Error deleting segment:', segment.title, error);
+            failCount++;
+          }
+        }
+      }
+
+      setLoading(false);
+
+      // Build success message
+      const actions = [];
+      if (createdCount > 0) actions.push(`created ${createdCount}`);
+      if (updatedCount > 0) actions.push(`updated ${updatedCount}`);
+      if (deletedCount > 0) actions.push(`deleted ${deletedCount}`);
+      
+      if (failCount === 0 && actions.length > 0) {
+        return { success: true, message: `Successfully ${actions.join(', ')} event${createdCount + updatedCount + deletedCount !== 1 ? 's' : ''} on your Twitch schedule!` };
+      } else if (actions.length > 0) {
+        return { success: true, message: `Synced schedule (${actions.join(', ')}), but ${failCount} operation${failCount !== 1 ? 's' : ''} failed. Check console for details.` };
+      } else {
+        return { success: false, message: 'Failed to sync schedule. Please try again.' };
+      }
+    } catch (error) {
+      setLoading(false);
+      console.error('Error syncing to Twitch:', error);
+      return { success: false, message: 'An error occurred while syncing to Twitch' };
+    }
+  };
+
+  // Handle OAuth callback and load cached user on mount
+  useEffect(() => {
+    const initializeAuth = async () => {
+      // First, check for OAuth callback
+      const authResponse = TwitchAuth.parseAuthResponse();
+      
+      if (authResponse) {
+        console.log('Processing OAuth callback...');
+        
+        // Validate state
+        if (!TwitchAuth.validateState(authResponse.state)) {
+          setError('Invalid OAuth state - possible CSRF attack');
+          window.history.replaceState({}, document.title, window.location.pathname);
+          return;
+        }
+
+        setIsAuthenticating(true);
+
+        // Save token
+        const token: TwitchAuth.TwitchUserToken = {
+          accessToken: authResponse.accessToken,
+          expiresAt: Date.now() + (authResponse.expiresIn * 1000),
+          scopes: authResponse.scopes,
+        };
+        TwitchAuth.saveUserToken(token);
+        setUserToken(token);
+
+        // Fetch user info
+        const userInfo = await TwitchAuth.fetchUserInfo(authResponse.accessToken, clientId);
+        if (userInfo) {
+          console.log('User info fetched:', userInfo);
+          TwitchAuth.saveUserData(userInfo);
+          setUserData(userInfo);
+          
+          // Automatically fetch schedule after successful login
+          setTwitchUsername(userInfo.login);
+          setProfileImageUrl(userInfo.profileImageUrl);
+          await fetchAndParseCalendar(true, userInfo.id);
+        }
+
+        setIsAuthenticating(false);
+
+        // Clean up URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+      } else {
+        // No OAuth callback, try to load cached user
+        console.log('No OAuth callback, checking cache...');
+        const cachedToken = TwitchAuth.getUserToken();
+        const cachedUserData = TwitchAuth.getUserData();
+
+        if (cachedToken && cachedUserData) {
+          console.log('Found cached user:', cachedUserData);
+          // Validate token is still good
+          const isValid = await TwitchAuth.validateToken(cachedToken.accessToken);
+          
+          if (isValid) {
+            console.log('Cached token is valid, restoring session');
+            setUserToken(cachedToken);
+            setUserData(cachedUserData);
+            
+            // Automatically fetch schedule after restoring session
+            setTwitchUsername(cachedUserData.login);
+            setProfileImageUrl(cachedUserData.profileImageUrl);
+            await fetchAndParseCalendar(true, cachedUserData.id);
+          } else {
+            console.log('Cached token expired, clearing');
+            // Token expired or invalid, clear it
+            TwitchAuth.clearUserToken();
+          }
+        }
+      }
+    };
+
+    initializeAuth();
+  }, [clientId]);
+
+  // Debug: log when userData changes
+  useEffect(() => {
+    console.log('userData state changed:', userData);
+  }, [userData]);
+
+  // Debug: log when userToken changes
+  useEffect(() => {
+    console.log('userToken state changed:', userToken ? 'token present' : 'no token');
+  }, [userToken]);
 
   const currentTime = moment();
   const timestampFormats = {
@@ -158,14 +451,16 @@ function App() {
 
   const searchTwitchCategories = async (query: string): Promise<Array<{ id: string; name: string }>> => {
     try {
-      if (!accessToken || !clientId || !query.trim()) {
+      const tokenToUse = userToken?.accessToken || accessToken;
+      
+      if (!tokenToUse || !clientId || !query.trim()) {
         return [];
       }
 
       const response = await axios.get('https://api.twitch.tv/helix/search/categories', {
         headers: {
           'Client-ID': clientId,
-          'Authorization': `Bearer ${accessToken}`,
+          'Authorization': `Bearer ${tokenToUse}`,
         },
         params: {
           query: query,
@@ -193,7 +488,9 @@ function App() {
           return { ...event, categoryImage: null };
         }
 
-        if (!accessToken) {
+        const tokenToUse = userToken?.accessToken || accessToken;
+
+        if (!tokenToUse) {
           console.warn('No access token—skipping category image');
           return { ...event, categoryImage: null };
         }
@@ -204,7 +501,7 @@ function App() {
           const response = await fetch(apiUrl, {
             headers: {
               'Client-ID': clientId,
-              'Authorization': `Bearer ${accessToken}`,
+              'Authorization': `Bearer ${tokenToUse}`,
             },
           });
 
@@ -269,7 +566,9 @@ function App() {
 }, [dateFormat]);
 
 const fetchBroadcasterInfo = async (username: string) => {
-  if (!accessToken || !clientId) return;
+  const tokenToUse = userToken?.accessToken || accessToken;
+  
+  if (!tokenToUse || !clientId) return;
 
   try {
     const res = await fetch(
@@ -277,7 +576,7 @@ const fetchBroadcasterInfo = async (username: string) => {
       {
         headers: {
           'Client-ID': clientId,
-          Authorization: `Bearer ${accessToken}`,
+          Authorization: `Bearer ${tokenToUse}`,
         },
       }
     );
@@ -298,7 +597,7 @@ const fetchBroadcasterInfo = async (username: string) => {
     return description.slice(0, -1);
   };
 
-  const fetchAndParseCalendar = async (useTwitchMode = false) => {
+  const fetchAndParseCalendar = async (useTwitchMode = false, broadcasterId?: string) => {
     setError('');
     setEvents([]);
     setLoading(true);
@@ -306,25 +605,35 @@ const fetchBroadcasterInfo = async (username: string) => {
 
     let icsUrl: string;
 
-    if (useTwitchMode && twitchUsername) {
-      const broadcasterId = useTwitchMode ? await fetchBroadcasterInfo(twitchUsername) :  null;
-      if (!broadcasterId) return; // Error already set
-      icsUrl = `https://api.twitch.tv/helix/schedule/icalendar?broadcaster_id=${broadcasterId}`;
+    if (useTwitchMode) {
+      let finalBroadcasterId = broadcasterId;
+      
+      if (!finalBroadcasterId && twitchUsername) {
+        finalBroadcasterId = await fetchBroadcasterInfo(twitchUsername);
+      }
+      
+      if (!finalBroadcasterId) {
+        setLoading(false);
+        return;
+      }
+      
+      icsUrl = `https://api.twitch.tv/helix/schedule/icalendar?broadcaster_id=${finalBroadcasterId}`;
     } else {
       icsUrl = webcalUrl.replace(/^webcal:\/\//, 'https://');
     }
 
-    // Fetch ICS (your existing fetch + ICAL.parse works unchanged!)
-    const response = await fetch(icsUrl, { 
-      mode: 'cors',
-      headers: useTwitchMode ? {
-        'Client-ID': clientId,
-        'Authorization': `Bearer ${accessToken}`,
-      } : {},
-    });
+    // Determine which token to use: user token if available, otherwise app token
+    const tokenToUse = userToken?.accessToken || accessToken;
 
     try {
-      const response = await fetch(icsUrl, { mode: 'cors' });
+      const response = await fetch(icsUrl, { 
+        mode: 'cors',
+        headers: useTwitchMode ? {
+          'Client-ID': clientId,
+          'Authorization': `Bearer ${tokenToUse}`,
+        } : {},
+      });
+      
       if (!response.ok) {
         throw new Error(`HTTP error: ${response.status} ${response.statusText}`);
       }
@@ -359,7 +668,8 @@ const fetchBroadcasterInfo = async (username: string) => {
             discordTimestamp: `<t:${startDate.unix()}:${timestampFormat}>`,
             description: event.description || 'No description',
             unixTimestamp: startDate.unix(),
-            endUnixTimestamp: endDate ? endDate.unix() : null
+            endUnixTimestamp: endDate ? endDate.unix() : null,
+            isRecurring: event.isRecurring()
           });
         }
 
@@ -378,7 +688,8 @@ const fetchBroadcasterInfo = async (username: string) => {
                 discordTimestamp: `<t:${occurrenceStart.unix()}:${timestampFormat}>`,
                 description: event.description || 'No description',
                 unixTimestamp: occurrenceStart.unix(),
-                endUnixTimestamp: occurrenceEnd ? occurrenceEnd.unix() : null
+                endUnixTimestamp: occurrenceEnd ? occurrenceEnd.unix() : null,
+                isRecurring: true
               });
             }
           }
@@ -392,17 +703,44 @@ const fetchBroadcasterInfo = async (username: string) => {
         return;
       }
 
+      // If loading from Twitch and we have a user token, fetch segment IDs to enable sync
+      let segmentMap: Map<string, string> | null = null; // Maps "startTime-title" to segment ID
+      if (useTwitchMode && broadcasterId && userToken) {
+        try {
+          const segments = await TwitchSchedule.fetchScheduleSegments(broadcasterId, userToken.accessToken, clientId);
+          if (segments) {
+            segmentMap = new Map();
+            segments.forEach(seg => {
+              const segStart = moment(seg.start_time);
+              const key = `${segStart.unix()}-${seg.title}`;
+              segmentMap!.set(key, seg.id);
+            });
+          }
+        } catch (error) {
+          console.warn('Could not fetch segment IDs for sync:', error);
+        }
+      }
+
       const enrichedEvents: ParsedEvent[] = await Promise.all(
         parsedEvents.map(async (event) => {
           const category = extractCategory(event.description);
 
-          if (!category) {
-            return { ...event, categoryImage: null };
+          // Attach segment ID if we have it
+          let twitchSegmentId: string | undefined;
+          if (segmentMap) {
+            const key = `${event.unixTimestamp}-${event.summary}`;
+            twitchSegmentId = segmentMap.get(key);
           }
 
-          if (!accessToken) {
+          if (!category) {
+            return { ...event, categoryImage: null, twitchSegmentId };
+          }
+
+          const tokenToUse = userToken?.accessToken || accessToken;
+
+          if (!tokenToUse) {
             console.warn('No access token yet—skipping images');
-            return { ...event, categoryImage: null };
+            return { ...event, categoryImage: null, twitchSegmentId };
           }
 
           try {
@@ -412,7 +750,7 @@ const fetchBroadcasterInfo = async (username: string) => {
             const response = await fetch(apiUrl, {
               headers: {
                 'Client-ID': clientId,
-                'Authorization': `Bearer ${accessToken}`,
+                'Authorization': `Bearer ${tokenToUse}`,
               },
             });
 
@@ -421,7 +759,7 @@ const fetchBroadcasterInfo = async (username: string) => {
               if (response.status === 401) {
                 console.error('401: Token invalid—refetching...', errorText);
                 await fetchAccessToken();
-                return { ...event, categoryImage: null };
+                return { ...event, categoryImage: null, twitchSegmentId };
               }
               throw new Error(`API: ${response.status} - ${errorText}`);
             }
@@ -431,13 +769,13 @@ const fetchBroadcasterInfo = async (username: string) => {
               const boxArtUrl = data.data[0].box_art_url
                 ?.replace('{width}', '272')
                 ?.replace('{height}', '380');
-              return { ...event, categoryImage: boxArtUrl || null };
+              return { ...event, categoryImage: boxArtUrl || null, twitchSegmentId };
             }
           } catch (err) {
             console.error(`Error for "${category}":`, err);
           }
 
-          return { ...event, categoryImage: null };
+          return { ...event, categoryImage: null, twitchSegmentId };
         })
       );
 
@@ -467,7 +805,7 @@ const handleReset = () => {
   setError('');
   setTabValue(0);
   setShareSheetOpen(false);
-  setCreateScheduleDialogOpen(false);
+  setScheduleEditorOpen(false);
   setScheduleImageDataUrl('');
   setShowEndDate(false);
   setShowDuration(false);
@@ -495,6 +833,8 @@ const handleReset = () => {
   };
 
   return (
+    <>
+    <div className={`page-container main-page ${scheduleEditorOpen ? 'shifted' : ''}`}>
     <Container maxWidth="md" className="container">
       <Box className="page-wrapper">
       <Box className="header-with-logo">
@@ -503,26 +843,125 @@ const handleReset = () => {
           Stream Share
         </Typography>
       </Box>
+
+      {/* User Authentication Section */}
+      <Box sx={{ mb: 3, textAlign: 'center' }}>
+        {isAuthenticating ? (
+          <Typography>Authenticating...</Typography>
+        ) : userData ? (
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <img 
+                src={userData.profileImageUrl} 
+                alt={userData.displayName}
+                style={{ 
+                  width: 40, 
+                  height: 40, 
+                  borderRadius: '50%',
+                  border: '2px solid #9146FF'
+                }}
+              />
+              <Typography variant="body1">
+                Logged in as <strong>{userData.displayName}</strong>
+              </Typography>
+            </Box>
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={loadMySchedule}
+              disabled={loading}
+              sx={{ 
+                borderColor: '#9146FF',
+                color: '#9146FF',
+                '&:hover': {
+                  borderColor: '#7a3bb8',
+                  backgroundColor: 'rgba(145, 70, 255, 0.1)',
+                },
+              }}
+            >
+              {loading ? 'Loading...' : 'Load My Schedule'}
+            </Button>
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={handleLogout}
+              sx={{ 
+                borderColor: '#ff4444',
+                color: '#ff4444',
+                '&:hover': {
+                  borderColor: '#cc0000',
+                  backgroundColor: 'rgba(255, 68, 68, 0.1)',
+                },
+              }}
+            >
+              Logout
+            </Button>
+          </Box>
+        ) : !twitchUsername ? (
+          <Box>
+            <Button
+              variant="contained"
+              onClick={handleTwitchLogin}
+              disabled={!clientId}
+              sx={{ 
+                backgroundColor: '#9146FF',
+                color: '#ffffff',
+                '&:hover': {
+                  backgroundColor: '#7a3bb8',
+                },
+              }}
+            >
+              Login with Twitch
+            </Button>
+            <Typography variant="caption" sx={{ display: 'block', mt: 1, color: '#666' }}>
+              We only access your public profile info and schedule. No data is stored on our servers.
+            </Typography>
+          </Box>
+        ) : null}
+      </Box>
+
       <Box component="form" onSubmit={handleSubmit} className="form-container">
-        <Box className="form-group">
-          <TextField
-            id="twitchUsername"
-            label="Your Twitch Username"
-            value={twitchUsername}
-            onChange={(e) => {
-              const sanitized = e.target.value.replace(/[^a-zA-Z0-9_ ]/g, '');
-+              setTwitchUsername(sanitized.trim());
-            }}
-            placeholder="e.g., shroud"
-            className="form-input"
-            fullWidth
-          />
-        </Box>
-        <Typography variant="h5" className="form-input" sx={{ mb: 2 }}>- OR -</Typography>
+        {!userData && (
+          <>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+              <TextField
+                id="twitchUsername"
+                label="Your Twitch Username"
+                value={twitchUsername}
+                onChange={(e) => {
+                  const sanitized = e.target.value.replace(/[^a-zA-Z0-9_ ]/g, '');
+                  setTwitchUsername(sanitized.trim());
+                }}
+                placeholder="e.g., shroud"
+                className="form-input"
+                fullWidth
+                size="small"
+              />
+              <Button
+                type="submit"
+                disabled={loading || !twitchUsername}
+                variant="contained"
+                size="medium"
+                sx={{ 
+                  minWidth: '140px',
+                  whiteSpace: 'nowrap',
+                  backgroundColor: '#9146FF',
+                  color: '#ffffff',
+                  '&:hover': {
+                    backgroundColor: '#7a3bb8',
+                  },
+                }}
+              >
+                {loading ? 'Loading...' : 'Fetch Events'}
+              </Button>
+            </Box>
+            <Typography variant="h5" className="form-input" sx={{ mb: 2 }}>- OR -</Typography>
+          </>
+        )}
         <Box className="form-group">
           <Button
             variant="contained"
-            onClick={() => setCreateScheduleDialogOpen(true)}
+            onClick={() => setScheduleEditorOpen(true)}
             fullWidth
             sx={{ 
               py: 1.5,
@@ -588,14 +1027,6 @@ const handleReset = () => {
           />
         </Box>
         <Box className="button-container">
-          <Button
-            type="submit"
-            disabled={loading || !twitchUsername}
-            variant="contained"
-            className="button"
-            >
-            {loading ? 'Loading...' : 'Fetch Events'}
-          </Button>
           <Button
             type="button"
             onClick={handleReset}
@@ -806,30 +1237,45 @@ const handleReset = () => {
         filename={`${twitchUsername || 'schedule'}_${imageSize.width}x${imageSize.height}.png`}
         title={`${twitchUsername}'s Stream Schedule`}
       />
-      <CreateScheduleDialog
-        open={createScheduleDialogOpen}
-        onClose={() => setCreateScheduleDialogOpen(false)}
-        onSave={(customEvents, channelName, profilePictureUrl, ringColor) => {
-          setEvents(customEvents);
-          setIsCustomSchedule(true);
-          if (channelName) {
-            setTwitchUsername(channelName);
-          }
-          if (profilePictureUrl) {
-            setProfileImageUrl(profilePictureUrl);
-          }
-          if (ringColor) {
-            setProfileRingColor(ringColor);
-          }
-          setCreateScheduleDialogOpen(false);
-        }}
-        searchCategories={searchTwitchCategories}
-        fetchCategoryImages={fetchCategoryImagesForEvents}
-        initialEvents={events}
-        initialChannelName={twitchUsername}
-        initialProfilePictureUrl={profileImageUrl}
-      />
       </Container>
+      </div>
+      
+      {/* Overlay */}
+      <div 
+        className={`page-overlay ${scheduleEditorOpen ? 'visible' : ''}`}
+        onClick={() => setScheduleEditorOpen(false)}
+      />
+      
+      {/* Schedule Editor Page */}
+      <div className={`page-container editor-page ${scheduleEditorOpen ? 'visible' : ''}`}>
+        {scheduleEditorOpen && (
+          <ScheduleEditorPage
+            onClose={() => setScheduleEditorOpen(false)}
+            onSave={(customEvents, channelName, profilePictureUrl, ringColor) => {
+              setEvents(customEvents);
+              setIsCustomSchedule(true);
+              if (channelName) {
+                setTwitchUsername(channelName);
+              }
+              if (profilePictureUrl) {
+                setProfileImageUrl(profilePictureUrl);
+              }
+              if (ringColor) {
+                setProfileRingColor(ringColor);
+              }
+              setScheduleEditorOpen(false);
+            }}
+            searchCategories={searchTwitchCategories}
+            fetchCategoryImages={fetchCategoryImagesForEvents}
+            initialEvents={events}
+            initialChannelName={twitchUsername}
+            initialProfilePictureUrl={profileImageUrl}
+            publishToTwitch={publishToTwitch}
+            isUserAuthenticated={!!userData}
+          />
+        )}
+      </div>
+      </>
     );
 }
 

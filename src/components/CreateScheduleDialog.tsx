@@ -39,6 +39,8 @@ interface CreateScheduleDialogProps {
   initialEvents?: ParsedEvent[];
   initialChannelName?: string;
   initialProfilePictureUrl?: string | null;
+  publishToTwitch?: (events: ParsedEvent[]) => Promise<{ success: boolean; message: string }>;
+  isUserAuthenticated?: boolean;
 }
 
 export const CreateScheduleDialog: React.FC<CreateScheduleDialogProps> = ({
@@ -50,6 +52,8 @@ export const CreateScheduleDialog: React.FC<CreateScheduleDialogProps> = ({
   initialEvents,
   initialChannelName,
   initialProfilePictureUrl,
+  publishToTwitch,
+  isUserAuthenticated,
 }) => {
   const [formData, setFormData] = useState<CreateEventFormData>({
     title: '',
@@ -66,6 +70,8 @@ export const CreateScheduleDialog: React.FC<CreateScheduleDialogProps> = ({
   const [categoryOptions, setCategoryOptions] = useState<Array<{ id: string; name: string }>>([]);
   const [categoryLoading, setCategoryLoading] = useState(false);
   const [editingEventIndex, setEditingEventIndex] = useState<number | null>(null);
+  const [publishMessage, setPublishMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [isPublishing, setIsPublishing] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<boolean>(false);
 
   // Initialize state when dialog opens with existing events
@@ -319,6 +325,7 @@ export const CreateScheduleDialog: React.FC<CreateScheduleDialogProps> = ({
               value={channelName}
               onChange={(e) => setChannelName(e.target.value)}
               fullWidth
+              disabled={isUserAuthenticated}
               sx={{
                 '& .MuiOutlinedInput-root': {
                   backgroundColor: '#242424',
@@ -348,6 +355,7 @@ export const CreateScheduleDialog: React.FC<CreateScheduleDialogProps> = ({
                 onChange={handleProfilePictureUpload}
                 style={{ display: 'none' }}
                 id="profile-picture-input"
+                disabled={isUserAuthenticated}
               />
               <Box
                 onDragOver={(e) => {
@@ -357,6 +365,7 @@ export const CreateScheduleDialog: React.FC<CreateScheduleDialogProps> = ({
                 onDrop={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
+                  if (isUserAuthenticated) return;
                   const file = e.dataTransfer.files?.[0];
                   if (file && file.type.startsWith('image/')) {
                     const reader = new FileReader();
@@ -376,11 +385,12 @@ export const CreateScheduleDialog: React.FC<CreateScheduleDialogProps> = ({
                   border: '2px dashed #9146FF',
                   borderRadius: '8px',
                   backgroundColor: '#1a1a1a',
-                  cursor: 'pointer',
+                  cursor: isUserAuthenticated ? 'not-allowed' : 'pointer',
                   transition: 'all 0.2s ease',
+                  opacity: isUserAuthenticated ? 0.5 : 1,
                   '&:hover': {
-                    borderColor: '#646cff',
-                    backgroundColor: '#242424',
+                    borderColor: isUserAuthenticated ? '#9146FF' : '#646cff',
+                    backgroundColor: isUserAuthenticated ? '#1a1a1a' : '#242424',
                   },
                 }}
                 component="label"
@@ -453,10 +463,11 @@ export const CreateScheduleDialog: React.FC<CreateScheduleDialogProps> = ({
                 borderRadius: '8px',
                 border: '2px solid #646cff',
                 overflow: 'hidden',
-                cursor: 'pointer',
+                cursor: isUserAuthenticated ? 'not-allowed' : 'pointer',
+                opacity: isUserAuthenticated ? 0.5 : 1,
                 transition: 'border-color 0.2s',
                 '&:hover': {
-                  borderColor: '#9146FF',
+                  borderColor: isUserAuthenticated ? '#646cff' : '#9146FF',
                 },
               }}
             >
@@ -464,12 +475,13 @@ export const CreateScheduleDialog: React.FC<CreateScheduleDialogProps> = ({
                 type="color"
                 value={profileRingColor}
                 onChange={(e) => setProfileRingColor(e.target.value)}
+                disabled={isUserAuthenticated}
                 style={{
                   position: 'absolute',
                   width: '100%',
                   height: '100%',
                   border: 'none',
-                  cursor: 'pointer',
+                  cursor: isUserAuthenticated ? 'not-allowed' : 'pointer',
                   margin: 0,
                   padding: 0,
                 }}
@@ -482,6 +494,7 @@ export const CreateScheduleDialog: React.FC<CreateScheduleDialogProps> = ({
               size="small"
               placeholder="#9146FF"
               fullWidth
+              disabled={isUserAuthenticated}
               sx={{
                 '& .MuiOutlinedInput-root': {
                   backgroundColor: '#242424',
@@ -805,38 +818,83 @@ export const CreateScheduleDialog: React.FC<CreateScheduleDialogProps> = ({
           )}
         </Box>
       </DialogContent>
-      <DialogActions sx={{ backgroundColor: '#1a1a1a', p: 2, gap: 1 }}>
-        <Button
-          onClick={handleClose}
-          sx={{
-            color: '#ffffff',
-            borderColor: '#646cff',
-            border: '1px solid',
-            '&:hover': {
-              backgroundColor: 'rgba(100, 108, 255, 0.1)',
-            },
-          }}
-        >
-          Cancel
-        </Button>
-        <Button
-          onClick={handleSave}
-          variant="contained"
-          disabled={events.length === 0}
-          sx={{
-            backgroundColor: '#9146FF',
-            color: '#ffffff',
-            '&:hover': {
-              backgroundColor: '#7a3bb8',
-            },
-            '&:disabled': {
-              backgroundColor: '#505050',
-              color: '#888888',
-            },
-          }}
-        >
-          {editingSchedule ? 'Update Schedule' : 'Create Schedule'}
-        </Button>
+      <DialogActions sx={{ backgroundColor: '#1a1a1a', p: 2, gap: 1, flexWrap: 'wrap' }}>
+        {publishMessage && (
+          <Box sx={{ width: '100%', mb: 1 }}>
+            <Typography 
+              variant="body2" 
+              sx={{ 
+                color: publishMessage.type === 'success' ? '#4caf50' : '#f44336',
+                textAlign: 'center'
+              }}
+            >
+              {publishMessage.text}
+            </Typography>
+          </Box>
+        )}
+        <Box sx={{ display: 'flex', gap: 1, width: '100%', justifyContent: 'space-between' }}>
+          <Button
+            onClick={handleClose}
+            sx={{
+              color: '#ffffff',
+              borderColor: '#646cff',
+              border: '1px solid',
+              '&:hover': {
+                backgroundColor: 'rgba(100, 108, 255, 0.1)',
+              },
+            }}
+          >
+            Cancel
+          </Button>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            {isUserAuthenticated && publishToTwitch && (
+              <Button
+                onClick={async () => {
+                  if (!publishToTwitch) return;
+                  setIsPublishing(true);
+                  setPublishMessage(null);
+                  const result = await publishToTwitch(events);
+                  setPublishMessage({ type: result.success ? 'success' : 'error', text: result.message });
+                  setIsPublishing(false);
+                }}
+                variant="outlined"
+                disabled={events.length === 0 || isPublishing}
+                sx={{
+                  borderColor: '#9146FF',
+                  color: '#9146FF',
+                  '&:hover': {
+                    backgroundColor: 'rgba(145, 70, 255, 0.1)',
+                    borderColor: '#7a3bb8',
+                  },
+                  '&:disabled': {
+                    borderColor: '#505050',
+                    color: '#888888',
+                  },
+                }}
+              >
+                {isPublishing ? 'Publishing...' : 'Publish to Twitch'}
+              </Button>
+            )}
+            <Button
+              onClick={handleSave}
+              variant="contained"
+              disabled={events.length === 0}
+              sx={{
+                backgroundColor: '#9146FF',
+                color: '#ffffff',
+                '&:hover': {
+                  backgroundColor: '#7a3bb8',
+                },
+                '&:disabled': {
+                  backgroundColor: '#505050',
+                  color: '#888888',
+                },
+              }}
+            >
+              {editingSchedule ? 'Update Schedule' : 'Create Schedule'}
+            </Button>
+          </Box>
+        </Box>
       </DialogActions>
     </Dialog>
   );

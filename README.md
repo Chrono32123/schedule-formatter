@@ -42,6 +42,7 @@ Stream Share gives you two ways to create your schedule, then converts it into s
 2. Click **"Create Schedule"** to manually add events
 3. Enter stream titles, dates, times, and categories
 4. Export as images or Discord timestamps
+5. **NEW:** If logged in, publish your custom schedule directly to Twitch!
 
 Perfect for non-Twitch streamers or anyone who doesn't use Twitch's calendar feature!
 
@@ -51,7 +52,28 @@ Perfect for non-Twitch streamers or anyone who doesn't use Twitch's calendar fea
 🕐 **Timezone Support** – Discord timestamps automatically adjust for every viewer  
 📅 **Week View** – Shows your next 7 days of scheduled streams  
 🎨 **Clean Design** – Professional-looking output without any design work  
-🔄 **Always in Sync** – Pull the latest schedule whenever you need it
+🔄 **Always in Sync** – Pull the latest schedule whenever you need it  
+🔐 **Privacy First** – Login with Twitch to access your schedule. All data stays in your browser  
+📤 **Publish to Twitch** – Create custom schedules and publish them directly to your Twitch channel
+
+## Privacy & Data Usage
+
+Stream Share respects your privacy:
+
+- **No server storage** – Your Twitch login token is stored only in your browser's localStorage
+- **Minimal permissions** – We only request access to your public profile information
+- **What we access**:
+  - Your username and profile picture (for display purposes)
+  - Your public stream schedule (to generate images and timestamps)
+  - Game/category information (for box art)
+- **What we DON'T access**:
+  - Private messages or chat
+  - Subscriber information
+  - Financial data
+  - Stream keys or settings
+- **Data deletion** – Click "Logout" to remove all cached data from your browser
+
+All processing happens client-side in your browser. We never send your personal information to any third-party servers.
 
 ## Tips
 
@@ -63,6 +85,45 @@ Perfect for non-Twitch streamers or anyone who doesn't use Twitch's calendar fea
 ## Contributing
 
 Contributions are welcome! This is an open-source project built with React, TypeScript, and Vite. Check out the [project repository](https://github.com/Chrono32123/schedule-formatter) to get started.
+
+### Development Setup
+
+To run Stream Share locally, you'll need to set up Twitch API credentials:
+
+1. **Create a Twitch Application**:
+   - Go to the [Twitch Developer Console](https://dev.twitch.tv/console)
+   - Click "Register Your Application"
+   - Fill in the required fields:
+     - **Name**: Choose a name for your app (e.g., "Stream Share Local Dev")
+     - **OAuth Redirect URLs**: Add `http://localhost:5173/schedule-formatter/` (or your local dev URL)
+     - **Category**: Choose "Website Integration"
+   - Click "Create"
+   - Copy your **Client ID** and generate a **Client Secret**
+
+2. **Configure Environment Variables**:
+   Create a `.env` file in the project root with:
+   ```env
+   VITE_TWITCH_CLIENT_ID=your_client_id_here
+   VITE_TWITCH_CLIENT_SECRET=your_client_secret_here
+   VITE_TWITCH_REDIRECT_URI=http://localhost:5173/schedule-formatter/
+   ```
+
+3. **Install and Run**:
+   ```bash
+   npm install
+   npm run dev
+   ```
+
+**Note**: The Client Secret is only needed for server-side token generation. For production deployments, consider using a backend service to handle client credentials flow securely.
+
+### User Authentication
+
+Stream Share now supports Twitch login! Users can authenticate with their Twitch account to:
+- Automatically load their own schedule without entering a username
+- Access their schedule with proper permissions
+- Stay logged in across sessions (token is cached in localStorage)
+
+The authentication uses OAuth 2.0 implicit flow, which is secure for client-side applications and doesn't require exposing client secrets.
 
 ## Support
 

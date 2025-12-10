@@ -9,6 +9,11 @@ import {
   Typography,
   IconButton,
   Tooltip,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  CircularProgress,
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -16,6 +21,10 @@ import {
   ContentCopy as CopyIcon,
 } from '@mui/icons-material';
 import './shareSheet.css';
+import { ParsedEvent } from '../App';
+import { ScheduleTemplate } from '../types/template';
+import { ALL_TEMPLATES } from '../templates/templates';
+import { GenerateScheduleImageFromTemplate } from './ScheduleImage';
 
 interface ShareSheetProps {
   open: boolean;
@@ -23,34 +32,98 @@ interface ShareSheetProps {
   imageDataUrl: string;
   filename: string;
   title: string;
+  // Template support
+  events?: ParsedEvent[];
+  twitchUsername?: string;
+  profileImageUrl?: string;
+  extractCategory?: (desc: string) => string | null;
 }
 
 export const ShareSheet: React.FC<ShareSheetProps> = ({
   open,
   onClose,
-  imageDataUrl,
+  imageDataUrl: initialImageDataUrl,
   filename,
   title,
+  events,
+  twitchUsername,
+  profileImageUrl,
+  extractCategory,
 }) => {
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string>('');
   const [copyImgButtonText, setCopyImgButtonText] = useState('Copy Image');
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('default');
+  const [currentImageDataUrl, setCurrentImageDataUrl] = useState<string>(initialImageDataUrl);
+  const [isGenerating, setIsGenerating] = useState<boolean>(false);
   
   // Detect if we're on iOS or if Web Share API is available
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
   const hasShareAPI = !!navigator.share;
   const buttonLabel = (isIOS || hasShareAPI) && !navigator.clipboard?.write ? 'Share Image' : 'Copy Image';
+  
+  // Template support is available only if events and related props are provided
+  const hasTemplateSupport = !!(events && twitchUsername && extractCategory);
 
+  // Reset to initial image when dialog opens
+  useEffect(() => {
+    if (open) {
+      setCurrentImageDataUrl(initialImageDataUrl);
+      setSelectedTemplateId('default');
+    }
+  }, [open, initialImageDataUrl]);
+  
+  // Regenerate image when template changes
+  useEffect(() => {
+    if (!hasTemplateSupport || !open) return;
+    
+    // If switching back to default, restore the initial image
+    if (selectedTemplateId === 'default') {
+      setCurrentImageDataUrl(initialImageDataUrl);
+      return;
+    }
+    
+    const regenerateImage = async () => {
+      setIsGenerating(true);
+      try {
+        const selectedTemplate = ALL_TEMPLATES.find(t => t.id === selectedTemplateId);
+        if (!selectedTemplate || !events || !twitchUsername || !extractCategory) return;
+        
+        const newImageUrl = await GenerateScheduleImageFromTemplate({
+          template: selectedTemplate,
+          events,
+          eventCount: events.length,
+          twitchUsername,
+          daysForward: '7',
+          profileImageUrl,
+          extractCategory,
+        });
+        
+        if (newImageUrl) {
+          setCurrentImageDataUrl(newImageUrl);
+        }
+      } catch (error) {
+        console.error('Failed to regenerate image with template:', error);
+      } finally {
+        setIsGenerating(false);
+      }
+    };
+    
+    regenerateImage();
+  }, [selectedTemplateId, hasTemplateSupport, open, events, twitchUsername, profileImageUrl, extractCategory, initialImageDataUrl]);
+  
   const downloadImage = () => {
     const link = document.createElement('a');
-    link.download = filename;
-    link.href = imageDataUrl;
+    const selectedTemplate = ALL_TEMPLATES.find(t => t.id === selectedTemplateId);
+    const templateSuffix = selectedTemplateId !== 'default' ? `_${selectedTemplateId}` : '';
+    link.download = filename.replace('.png', `${templateSuffix}.png`);
+    link.href = currentImageDataUrl;
     link.click();
   };
 
   const copyImage = async () => {
     try {
       // Convert data URL to blob
-      const response = await fetch(imageDataUrl);
+      const response = await fetch(currentImageDataUrl);
       const blob = await response.blob();
       const file = new File([blob], filename, { type: 'image/png' });
       
@@ -127,9 +200,56 @@ export const ShareSheet: React.FC<ShareSheetProps> = ({
       </DialogTitle>
 
       <DialogContent className="share-sheet-content">
+        {/* Template Selection */}
+        {hasTemplateSupport && (
+          <Box className="template-selector-container" sx={{ mb: 2 }}>
+            <FormControl fullWidth size="small">
+              <InputLabel id="template-select-label">Template Style</InputLabel>
+              <Select
+                labelId="template-select-label"
+                value={selectedTemplateId}
+                label="Template Style"
+                onChange={(e) => setSelectedTemplateId(e.target.value)}
+                disabled={isGenerating}
+              >
+                <MenuItem value="default">Default</MenuItem>
+                {ALL_TEMPLATES.filter(t => t.id !== 'default').map(template => (
+                  <MenuItem key={template.id} value={template.id}>
+                    {template.name} {template.description && `- ${template.description}`}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            {selectedTemplateId !== 'default' && (
+              <Typography variant="caption" sx={{ mt: 1, display: 'block', fontStyle: 'italic' }}>
+                Preview updates automatically when you select a template
+              </Typography>
+            )}
+          </Box>
+        )}
+        
         {/* Image Preview */}
-        <Box className="image-preview-container">
-          <img src={imageDataUrl} alt="Schedule preview" className="image-preview" />
+        <Box className="image-preview-container" sx={{ position: 'relative' }}>
+          {isGenerating && (
+            <Box
+              sx={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                zIndex: 1,
+                borderRadius: 1,
+              }}
+            >
+              <CircularProgress />
+            </Box>
+          )}
+          <img src={currentImageDataUrl} alt="Schedule preview" className="image-preview" />
         </Box>
 
         {/* Share Buttons */}
@@ -145,6 +265,7 @@ export const ShareSheet: React.FC<ShareSheetProps> = ({
                 className="other-button"
                 onClick={downloadImage}
                 startIcon={<DownloadIcon />}
+                disabled={isGenerating}
               >
                 Download Image
               </Button>
@@ -156,6 +277,7 @@ export const ShareSheet: React.FC<ShareSheetProps> = ({
                 className="other-button"
                 onClick={copyImage}
                 startIcon={<CopyIcon />}
+                disabled={isGenerating}
               >{copyImgButtonText}
               </Button>
             </Tooltip>

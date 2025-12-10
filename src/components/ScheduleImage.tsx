@@ -1,16 +1,21 @@
 // src/components/ScheduleImage.tsx
 import React, { useEffect, useRef, useState } from 'react';
 import { ParsedEvent } from '../App';
-import { renderScheduleToCanvas } from '../utils/canvasRenderer';
+import { renderScheduleToCanvas, renderScheduleToCanvasWithTemplate } from '../utils/canvasRenderer';
 import { formatStartEndDates } from '../utils/dateFormatting';
 import { Typography } from '@mui/material';
 import './scheduleImage.css';
+import { ScheduleTemplate } from '../types/template';
 
 interface ImageSize {
   width: number;
   height: number;
 }
 
+/**
+ * Legacy Props interface for backward compatibility
+ * Use TemplateProps for new template-based rendering
+ */
 interface Props {
   events: ParsedEvent[];
   eventCount: number;
@@ -24,6 +29,92 @@ interface Props {
   dateFormat?: string;
   lightMode?: boolean;
   profileRingColor?: string;
+}
+
+/**
+ * Template-based Props interface
+ * Combines template configuration with runtime data
+ */
+interface TemplateProps {
+  template: ScheduleTemplate;
+  events: ParsedEvent[];
+  eventCount: number;
+  twitchUsername: string;
+  daysForward: string;
+  profileImageUrl?: string;
+  extractCategory: (desc: string) => string | null;
+}
+
+/**
+ * Convert legacy Props to TemplateProps for backward compatibility
+ */
+function propsToTemplateProps(props: Props): TemplateProps & { template: ScheduleTemplate } {
+  const { size, showEndDate, showDuration, dateFormat, lightMode, profileRingColor, ...rest } = props;
+  
+  // Create a template from legacy props
+  const template: ScheduleTemplate = {
+    id: 'legacy',
+    name: 'Legacy',
+    resolution: { width: size.width, height: size.height },
+    colorScheme: lightMode 
+      ? {
+          background: '#f5f5f5',
+          text: '#2a2a2a',
+          accent: '#9146FF',
+          border: '#d0d0d0',
+          subtle: '#666666',
+        }
+      : {
+          background: '#1a1a1a',
+          text: '#ffffff',
+          accent: '#9146FF',
+          border: '#555555',
+          subtle: '#cccccc',
+        },
+    lightMode: lightMode ?? false,
+    typography: {
+      titleSize: 56,
+      subtitleSize: 42,
+      eventTitleSize: 44,
+      eventMetaSize: 32,
+      footerSize: 12,
+      fontFamily: 'Roboto, sans-serif',
+    },
+    layout: {
+      paddingTop: 50,
+      paddingBottom: 80,
+      paddingSides: 50,
+      eventSpacing: 8,
+      headerSpacing: 20,
+      borderRadius: 20,
+      eventWidth: 750,
+    },
+    eventDisplay: {
+      showEndDate: showEndDate ?? false,
+      showDuration: showDuration ?? false,
+      showCategory: true,
+      showCategoryImage: true,
+      dateFormat: dateFormat ?? 'MM-DD-YYYY hh:mm A',
+    },
+    profileConfig: {
+      showAvatar: true,
+      avatarSize: 110,
+      avatarBorderColor: profileRingColor ?? '#9146FF',
+      showUsername: true,
+      showDateRange: true,
+    },
+    footer: {
+      text: 'Powered by Easy Stream Schedule Tool',
+      show: true,
+    },
+    maxEvents: 7,
+    autoScale: true,
+  };
+  
+  return {
+    ...rest,
+    template,
+  };
 }
 
 export const GenerateScheduleImage = async (props: Props): Promise<string | null> => {
@@ -57,6 +148,29 @@ export const GenerateScheduleImage = async (props: Props): Promise<string | null
     return dataUrl;
   } catch (err) {
     console.error('Image generation failed', err);
+    return null;
+  }
+};
+
+/**
+ * Generate schedule image using a template configuration
+ * This is the preferred method for new implementations
+ */
+export const GenerateScheduleImageFromTemplate = async (props: TemplateProps): Promise<string | null> => {
+  const { template, events, twitchUsername, profileImageUrl, extractCategory } = props;
+  
+  try {
+    const dataUrl = await renderScheduleToCanvasWithTemplate(
+      template,
+      events,
+      twitchUsername,
+      profileImageUrl,
+      extractCategory
+    );
+
+    return dataUrl;
+  } catch (err) {
+    console.error('Template-based image generation failed', err);
     return null;
   }
 };
@@ -186,7 +300,7 @@ export const ScheduleImageTemplate: React.FC<Props> = ({
             {/* Footer */}
             <div className="schedule-image-footer" ref={footerRef}>
               <Typography variant="caption">
-                Powered by Easy Stream Schedule Tool
+                Powered by StreamShare
               </Typography>
             </div>
           </div>
@@ -194,4 +308,33 @@ export const ScheduleImageTemplate: React.FC<Props> = ({
       </div>
     </div>
   );
+};
+
+/**
+ * Template-based Schedule Image Component
+ * Renders schedule using a ScheduleTemplate configuration
+ */
+export const ScheduleImageTemplateFromTemplate: React.FC<TemplateProps> = (props) => {
+  const { template, events, eventCount, twitchUsername, daysForward, profileImageUrl, extractCategory } = props;
+  
+  // Convert template to legacy props format to reuse existing component
+  const legacyProps: Props = {
+    events,
+    eventCount,
+    twitchUsername,
+    daysForward,
+    profileImageUrl,
+    extractCategory,
+    size: {
+      width: template.resolution.width,
+      height: template.resolution.height,
+    },
+    showEndDate: template.eventDisplay.showEndDate,
+    showDuration: template.eventDisplay.showDuration,
+    dateFormat: template.eventDisplay.dateFormat,
+    lightMode: template.lightMode,
+    profileRingColor: template.profileConfig.avatarBorderColor,
+  };
+  
+  return <ScheduleImageTemplate {...legacyProps} />;
 };

@@ -15,6 +15,7 @@ import { ParsedEvent } from '../App';
 import { formatStartEndDates } from './dateFormatting';
 import moment from 'moment';
 import logoSvg from '../assets/stream_share_logo.svg';
+import { ScheduleTemplate } from '../types/template';
 
 interface CanvasConfig {
   width: number;
@@ -246,7 +247,9 @@ export async function renderScheduleToCanvas(
   showDuration?: boolean,
   dateFormat?: string,
   lightMode?: boolean,
-  profileRingColor?: string
+  profileRingColor?: string,
+  showCategoryImage: boolean = true,
+  layoutMode: 'vertical' | 'horizontal-row' = 'vertical'
 ): Promise<string> {
   const { width, height, eventCount, dpi = 1 } = config;
   const fitScale = calculateFitScale(eventCount);
@@ -349,6 +352,96 @@ export async function renderScheduleToCanvas(
   ctx.textAlign = 'left'; // Reset alignment for events
 
   // ============================================
+  // HORIZONTAL ROW LAYOUT (for wide template)
+  // ============================================
+  if (layoutMode === 'horizontal-row') {
+    currentY = 210; // Start events below centered header
+    const contentHeight = height - currentY - scaleDimension(LAYOUT.footerHeight, fitScale) - 40;
+    
+    // Filter valid events
+    const validEvents = events.filter(e => e && e.summary).slice(0, 7);
+    
+    // Calculate layout for horizontal row
+    const eventSpacing = 20;
+    const availableWidth = width - 120; // 60px padding on each side
+    const eventWidth = (availableWidth - (validEvents.length - 1) * eventSpacing) / validEvents.length;
+    const imageSize = Math.min(eventWidth - 20, 220); // Max 220px, with 10px padding each side
+    const imageHeight = imageSize * 1.4; // Maintain aspect ratio
+    
+    let currentX = 60; // Start with left padding
+    
+    // Helper function to break title at punctuation
+    const breakTitle = (title: string, maxWidth: number): string[] => {
+      const punctuation = [':', '-', '|'];
+      let bestBreak = title;
+      
+      // Try to find the first punctuation
+      for (const punct of punctuation) {
+        const index = title.indexOf(punct);
+        if (index > 0 && index < title.length - 1) {
+          bestBreak = title.substring(0, index).trim();
+          break;
+        }
+      }
+      
+      // If title is still too long, wrap it
+      ctx.font = `bold ${28}px 'Roboto', sans-serif`;
+      return wrapText(ctx, bestBreak, maxWidth);
+    };
+    
+    for (const event of validEvents) {
+      const eventCenterX = currentX + eventWidth / 2;
+      let eventY = currentY + 20;
+      
+      // Extract day of week and day of month from start date
+      const eventDate = moment(event.start, 'MM-DD-YYYY hh:mm A');
+      const dayOfWeek = eventDate.format('ddd'); // Mon, Tue, etc.
+      const dayOfMonth = eventDate.format('DD'); // 01, 02, etc.
+      
+      // Draw day of week
+      ctx.font = `bold ${20}px 'Roboto', sans-serif`;
+      ctx.fillStyle = colors.accent;
+      ctx.textAlign = 'center';
+      ctx.fillText(dayOfWeek.toUpperCase(), eventCenterX, eventY);
+      eventY += 24;
+      
+      // Draw day of month
+      ctx.font = `bold ${32}px 'Roboto', sans-serif`;
+      ctx.fillStyle = colors.text;
+      ctx.fillText(dayOfMonth, eventCenterX, eventY);
+      eventY += 40;
+      
+      // Draw category image
+      if (showCategoryImage && event.categoryImage) {
+        try {
+          const imageX = eventCenterX - imageSize / 2;
+          await drawImage(ctx, event.categoryImage, imageX, eventY, imageSize, imageHeight, 8);
+          eventY += imageHeight + 16;
+        } catch (err) {
+          console.warn('Failed to load event image', err);
+          eventY += imageHeight + 16; // Still reserve space
+        }
+      } else {
+        eventY += imageHeight + 16; // Reserve space even if no image
+      }
+      
+      // Draw title (break at punctuation)
+      const titleLines = breakTitle(event.summary, eventWidth - 10);
+      ctx.font = `bold ${28}px 'Roboto', sans-serif`;
+      ctx.fillStyle = colors.text;
+      
+      for (const line of titleLines) {
+        ctx.fillText(line, eventCenterX, eventY);
+        eventY += 32;
+      }
+      
+      // Move to next event position
+      currentX += eventWidth + eventSpacing;
+    }
+    
+  } else {
+
+  // ============================================
   // EVENTS: Calculate total height and center vertically
   // ============================================
   currentY = 210; // Start events below centered header
@@ -375,7 +468,7 @@ export async function renderScheduleToCanvas(
     let singleY = singleEventStartY;
     
     // Draw large event image centered at top if available
-    if (event.categoryImage) {
+    if (showCategoryImage && event.categoryImage) {
       try {
         const imageX = (width - largeImageWidth) / 2;
         await drawImage(ctx, event.categoryImage, imageX, singleY, largeImageWidth, largeImageHeight, 16);
@@ -499,7 +592,7 @@ export async function renderScheduleToCanvas(
     }
 
     // Draw event image on the right if available
-    if (event.categoryImage) {
+    if (showCategoryImage && event.categoryImage) {
       try {
         await drawImage(ctx, event.categoryImage, eventImageX, currentY, eventImageWidth, eventImageHeight, 8);
       } catch (err) {
@@ -515,6 +608,8 @@ export async function renderScheduleToCanvas(
   }
   
   } // End of else block for multiple events
+  
+  } // End of else block for vertical layout
 
   // ============================================
   // FOOTER - Logo + Text inline
@@ -559,4 +654,37 @@ export async function renderScheduleToCanvas(
 
   // Convert canvas to PNG data URL
   return canvas.toDataURL('image/png', 1.0);
+}
+
+/**
+ * Render schedule to canvas using a ScheduleTemplate configuration
+ * This is a convenience wrapper around renderScheduleToCanvas that accepts
+ * template objects instead of individual parameters.
+ */
+export async function renderScheduleToCanvasWithTemplate(
+  template: ScheduleTemplate,
+  events: ParsedEvent[],
+  twitchUsername: string,
+  profileImageUrl: string | undefined,
+  extractCategory: (desc: string) => string | null
+): Promise<string> {
+  return renderScheduleToCanvas(
+    {
+      width: template.resolution.width,
+      height: template.resolution.height,
+      eventCount: events.length,
+    },
+    events,
+    twitchUsername,
+    profileImageUrl,
+    template.footer.show ? template.footer.text : '',
+    extractCategory,
+    template.eventDisplay.showEndDate,
+    template.eventDisplay.showDuration,
+    template.eventDisplay.dateFormat,
+    template.lightMode,
+    template.profileConfig.avatarBorderColor,
+    template.eventDisplay.showCategoryImage,
+    template.layout.mode || 'vertical'
+  );
 }

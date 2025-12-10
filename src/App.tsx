@@ -805,6 +805,10 @@ const handleReset = () => {
         imageDataUrl={scheduleImageDataUrl}
         filename={`${twitchUsername || 'schedule'}_${imageSize.width}x${imageSize.height}.png`}
         title={`${twitchUsername}'s Stream Schedule`}
+        events={events}
+        twitchUsername={twitchUsername}
+        profileImageUrl={profileImageUrl}
+        extractCategory={extractCategory}
       />
       <CreateScheduleDialog
         open={createScheduleDialogOpen}

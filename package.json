@@ -1,7 +1,7 @@
 {
   "name": "schedule-formatter",
   "homepage": "https://chrono32123.github.io/schedule-formatter",
-  "version": "1.0.000",
+  "version": "1.2.000",
   "private": true,
   "type": "module",
   "scripts": {

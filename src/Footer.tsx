@@ -2,7 +2,7 @@ import { Box, Typography, Link } from '@mui/material';
 import './App.css'; // Reuse App.css for styling
 
 const Footer = () => {
-  const version = '1.0.000';
+  const version = '1.2.000';
   return (
     <Box component="footer" className="footer">
       {/* Social Links */}

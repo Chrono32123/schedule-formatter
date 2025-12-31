@@ -914,7 +914,7 @@ const handleReset = () => {
               Login with Twitch
             </Button>
             <Typography variant="caption" sx={{ display: 'block', mt: 1, color: '#666' }}>
-              We only access your public profile info and schedule. No data is stored on our servers.
+              We only access your public profile info and schedule. No data is stored by StreamShare.
             </Typography>
           </Box>
         ) : null}
